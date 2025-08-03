@@ -1,10 +1,9 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import MainPage from './pages/MainPage.vue'
 </script>
 
 <template>
-  <div>Поехали</div>
+  <MainPage />
 </template>
 
 <style scoped></style>
