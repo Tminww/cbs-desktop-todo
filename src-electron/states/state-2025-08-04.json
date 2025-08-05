@@ -1,5 +1,5 @@
 {
-  "date": "",
+  "doctors": [{ "name": "Иванов Иван Иванович 4" }],
   "blocks": [
     {
       "label": "ПОМЕЩЕНИЯ ОТДЕЛЕНИЯ ПОСЛЕ ОКОНЧАНИЯ СМЕНЫ",
@@ -7,68 +7,68 @@
         {
           "number": 1,
           "label": "БОКС ПРИЕМА ОБРАЗЦОВ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "1"
         },
         {
           "number": 2,
           "label": "БОКС ВРАЧЕБНО-АНАЛИТИЧЕСКИЙ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "2"
         },
         {
           "number": 3,
           "label": "БОКС АНАЛИТИЧЕСКИЙ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "3"
         },
         {
           "number": 4,
           "label": "БОКС ПОСЕВА ОБРАЗЦОВ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "4"
         },
         {
           "number": 5,
           "label": "АВТОКЛАВНЫЙ БОКС",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "5"
         },
         {
           "number": 6,
           "label": "ТЕРМОСТАТНЫЙ БОКС",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "6"
         },
         {
           "number": 7,
           "label": "БОКС ПОСЕВА ВОДЫ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "7"
         },
         {
           "number": 8,
           "label": "БОКС ПРИГОТОВЛЕНИЯ ПИТАТЕЛЬНЫХ СРЕД",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "8"
         },
         {
           "number": 9,
           "label": "МОЕЧНЫЙ БОКС",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "9"
         },
         {
           "number": 10,
           "label": "СТЕРИЛИЗАЦИОННЫЙ БОКС",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "0"
         },
         {
           "number": 11,
           "label": "БОКС ПРИЕМА ПИЩИ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "-"
         }
       ]
     },
@@ -78,8 +78,8 @@
         {
           "number": 1,
           "label": "КОНТРОЛЬ НАЛИЧИЯ РАСХОДНЫХ МАТЕРИАЛОВ (СРЕДЫ, БУТЫЛКИ, ТЕСТ-НАБОРЫ) ДЛЯ РАБОТЫ СЛЕДУЮЩЕЙ РАБОЧЕЙ СМЕНЫ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "5345"
         }
       ]
     },
@@ -89,51 +89,29 @@
         {
           "number": 1,
           "label": "КОНТРОЛЬ ОТКЛЮЧЕНИЯ ОБОРУДОВАНИЯ ИЗ РОЗЕТОК (ГДЕ НЕОБХОДИМО)",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "3ter"
         },
         {
           "number": 2,
           "label": "КОНТРОЛЬ ОТКЛЮЧЕНИЯ СВЕТА В ПОМЕЩЕНИЯХ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": true, "notComplete": false },
+          "description": "rgerg"
         },
         {
           "number": 3,
           "label": "КОНТРОЛЬ ВКЛЮЧЕНИЯ УФ В ПОМЕЩЕНИЯХ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "ger"
         },
         {
           "number": 4,
           "label": "ПРОВЕРКА ЗАКРЫТИЯ ДВЕРЕЙ ОТДЕЛЕНИЯ",
-          "state": { "complete": false, "notComplete": false },
-          "description": ""
+          "state": { "complete": false, "notComplete": true },
+          "description": "ergerg"
         }
       ]
     }
   ],
-  "doctors": [
-    {
-      "name": "Иванов Иван Иванович 1"
-    },
-    {
-      "name": "Иванов Иван Иванович 2"
-    },
-    {
-      "name": "Иванов Иван Иванович 3"
-    },
-    {
-      "name": "Иванов Иван Иванович 4"
-    },
-    {
-      "name": "Иванов Иван Иванович 5"
-    },
-    {
-      "name": "Иванов Иван Иванович 6"
-    },
-    {
-      "name": "Иванов Иван Иванович 7"
-    }
-  ]
+  "date": "2025-08-05"
 }

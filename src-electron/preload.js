@@ -1,7 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron'
+const { contextBridge, ipcRenderer } = require('electron')
 
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld('backend', {
   // Здесь можно добавить API для взаимодействия с главным процессом
-  openFile: () => ipcRenderer.invoke('dialog:openFile'),
-  onUpdateCounter: (callback) => ipcRenderer.on('update-counter', callback),
+  sendPing: (arg) => ipcRenderer.invoke('send-ping', arg),
+  saveFile: (args) => ipcRenderer.invoke('save-file', args),
+  openFile: (args) => ipcRenderer.invoke('open-file', args),
 })
