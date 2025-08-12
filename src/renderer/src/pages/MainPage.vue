@@ -325,6 +325,7 @@ const timeoutActionStatus = (status) => {
                   type="checkbox"
                   v-model="task.state.complete"
                   :disabled="isReadonly"
+                  @change="task.state.notComplete = !task.state.complete"
                 />
               </th>
               <th>
@@ -332,6 +333,7 @@ const timeoutActionStatus = (status) => {
                   type="checkbox"
                   v-model="task.state.notComplete"
                   :disabled="isReadonly"
+                  @change="task.state.complete = !task.state.notComplete"
                 />
               </th>
               <th>
