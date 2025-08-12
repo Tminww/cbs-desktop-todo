@@ -33,13 +33,6 @@ const saveButtonDisable = computed(
 // Поля только для чтения для всех дней кроме сегодняшнего
 const isReadonly = computed(() => !isToday.value);
 
-// Функция для установки русского языка в textarea
-const setRussianLanguage = (event) => {
-  const textarea = event.target;
-  textarea.lang = "ru";
-  textarea.setAttribute("inputmode", "text");
-};
-
 // Загрузка врачей для выбранной даты
 const loadDoctorsForDate = async (date: string) => {
   try {
@@ -346,9 +339,9 @@ const timeoutActionStatus = (status) => {
                   lang="ru-RU"
                   v-model="task.description"
                   placeholder="Введите примечание..."
-                  @focus="setRussianLanguage"
                   :readonly="isReadonly"
                   inputmode="text"
+                  spellcheck="true"
                 ></textarea>
               </th>
             </tr>
