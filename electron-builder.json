@@ -5,7 +5,12 @@
     "output": "dist",
     "buildResources": "build"
   },
-  "files": ["out/**/*", "package.json"],
+  "files": [
+    "out/**/*",
+    "package.json",
+    "!**/builder-debug.yml",
+    "!**/*.blockmap"
+  ],
   "extraMetadata": {
     "main": "out/main/index.cjs"
   },
