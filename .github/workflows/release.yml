@@ -69,10 +69,10 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist/**/*.exe
-            dist/**/*.AppImage
-            dist/**/*.deb
-            dist/**/*.dmg
-            dist/**/*.zip
+            dist/**/*release*.exe
+            dist/**/*release*.AppImage
+            dist/**/*release*.deb
+            dist/**/*release*.dmg
+            dist/**/*release*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -21,7 +21,7 @@
         "arch": ["ia32", "x64"]
       }
     ],
-    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-release-${version}-${arch}.${ext}"
   },
   "nsis": {
     "oneClick": false,
@@ -34,11 +34,11 @@
   "mac": {
     "target": ["dmg"],
     "category": "public.app-category.productivity",
-    "artifactName": "${productName}-${version}-${arch}.${ext}"
+    "artifactName": "${productName}-release-${version}-${arch}.${ext}"
   },
   "linux": {
     "target": ["AppImage", "deb"],
-    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "artifactName": "${productName}-release-${version}-${arch}.${ext}",
     "category": "Utility"
   },
   "publish": false
