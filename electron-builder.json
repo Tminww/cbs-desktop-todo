@@ -1,24 +1,39 @@
 {
   "appId": "com.electron.app",
+  "productName": "CBSElectronToDoList",
   "directories": {
-    "output": "dist"
+    "output": "dist",
+    "buildResources": "build"
   },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "shortcutName": "CBSElectronToDoList"
+  "files": ["out/**/*", "package.json"],
+  "extraMetadata": {
+    "main": "out/main/index.cjs"
   },
   "win": {
     "target": [
       {
         "target": "nsis",
-        "arch": ["ia32"]
+        "arch": ["ia32", "x64"]
       }
-    ]
+    ],
+    "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "shortcutName": "CBSElectronToDoList",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.productivity",
+    "artifactName": "${productName}-${version}-${arch}.${ext}"
   },
   "linux": {
-    "target": ["AppImage"]
-  },
-  "files": ["out/**/*"]
+    "target": ["AppImage", "deb"],
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "category": "Utility"
+  }
 }

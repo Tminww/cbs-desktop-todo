@@ -1,0 +1,66 @@
+name: Build & Release Electron App
+
+on:
+  push:
+    tags:
+      - "v*.*.*" # Запуск при пуше тега версии
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      # Установка зависимостей
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Для Linux AppImage нужна libfuse2
+      - name: Install libfuse2 (Linux only)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libfuse2
+
+      # Сборка и упаковка
+      - name: Build & Package
+        run: |
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            bun run dist:win
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            bun run dist:mac
+          else
+            bun run dist:linux
+          fi
+        shell: bash
+
+      # Загружаем билды как артефакты
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-build
+          path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
