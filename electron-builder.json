@@ -36,5 +36,5 @@
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "category": "Utility"
   },
-  "publish": "never"
+  "publish": false
 }
