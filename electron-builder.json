@@ -35,5 +35,6 @@
     "target": ["AppImage", "deb"],
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "category": "Utility"
-  }
+  },
+  "publish": "never"
 }

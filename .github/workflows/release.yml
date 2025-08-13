@@ -34,7 +34,7 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libfuse2
 
-      # Сборка и упаковка
+      # Сборка и упаковка (БЕЗ публикации)
       - name: Build & Package
         run: |
           if [ "$RUNNER_OS" == "Windows" ]; then
@@ -46,7 +46,8 @@ jobs:
           fi
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Отключаем автопубликацию electron-builder
+          ELECTRON_BUILDER_PUBLISH: never
 
       # Загружаем билды как артефакты
       - name: Upload artifacts
