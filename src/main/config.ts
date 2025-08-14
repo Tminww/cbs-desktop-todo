@@ -1,10 +1,5 @@
 const config = {
-  days: {
-    "12.12.1212": {
-      blocks: [],
-      doctors: [],
-    },
-  },
+  days: {},
   meta: {
     blocks: [
       {

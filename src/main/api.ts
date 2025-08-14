@@ -1,142 +1,270 @@
 import { ipcMain } from "electron";
-import * as fs from "fs/promises";
-import path from "path";
-import { app } from "electron";
+import { dataService } from "./service";
 
-const dataDir = path.join(app.getPath("userData"), "states");
-
-// Утилитные функции для работы с файлами
-const ensureDataDir = async (): Promise<void> => {
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-};
-
-const save = async (fileName: string, content: string): Promise<boolean> => {
-  try {
-    await ensureDataDir();
-    const filePath = path.join(dataDir, fileName);
-    await fs.writeFile(filePath, content);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const load = async (fileName: string): Promise<string | false> => {
-  try {
-    const filePath = path.join(dataDir, fileName);
-    const data = await fs.readFile(filePath, "utf8");
-    return data;
-  } catch {
-    return false;
-  }
-};
-
-const loadDayData = async (date: string): Promise<any> => {
-  try {
-    const filePath = path.join(dataDir, `day-${date}.json`);
-    const data = await fs.readFile(filePath, "utf8");
-    return JSON.parse(data);
-  } catch {
-    return {};
-  }
-};
-
-const saveDayData = async (date: string, dayData: any): Promise<boolean> => {
-  try {
-    await ensureDataDir();
-    const filePath = path.join(dataDir, `day-${date}.json`);
-    await fs.writeFile(filePath, JSON.stringify(dayData, null, 2));
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-// Регистрация всех IPC handlers
+/**
+ * Регистрация всех IPC handlers с использованием сервиса
+ */
 export const registerApi = (): void => {
+  // Тестовый хендлер
   ipcMain.handle("send-ping", async (event, arg) => {
-    console.log(arg);
+    console.log("Ping received:", arg);
     return "pong";
   });
 
-  // Новый обработчик для сохранения данных с учетом множественных пользователей
+  // Сохранение данных врача
   ipcMain.handle("save-file", async (event, args) => {
-    console.log(args);
-    const { date, doctor, content } = args;
+    try {
+      const { date, doctor, content } = args;
 
-    // Загружаем существующие данные за день
-    const dayData = await loadDayData(date);
-
-    // Обновляем данные для конкретного врача
-    dayData[doctor] = JSON.parse(content);
-
-    if (await saveDayData(date, dayData)) {
-      return {
-        message: "Успешное сохранение",
-        status: "success",
-      };
-    } else {
-      return {
-        message: "При сохранении произошла ошибка",
-        status: "error",
-      };
-    }
-  });
-
-  // Обработчик для загрузки данных конкретного врача
-  ipcMain.handle("open-file", async (event, args) => {
-    console.log(args);
-    const { date, doctor } = args;
-
-    if (date === "initial") {
-      const content = await load("state-initial.json");
-      if (content) {
+      if (!date || !doctor || !content) {
         return {
-          message: "Успешная загрузка",
-          status: "success",
-          content,
-        };
-      } else {
-        return {
-          message: "При загрузке данных произошла ошибка",
+          message: "Отсутствуют обязательные параметры",
           status: "error",
         };
       }
-    }
 
-    const dayData = await loadDayData(date);
-    const doctorData = dayData[doctor];
+      // Проверяем, не является ли дата будущей
+      if (dataService.isFutureDate(date)) {
+        return {
+          message: "Нельзя сохранять данные для будущих дат",
+          status: "error",
+        };
+      }
 
-    if (doctorData) {
+      let parsedData;
+      try {
+        parsedData = JSON.parse(content);
+      } catch (parseError) {
+        return {
+          message: "Некорректный формат данных",
+          status: "error",
+        };
+      }
+
+      // Валидируем данные
+      if (!dataService.validateData(parsedData)) {
+        return {
+          message: "Данные не соответствуют требуемой структуре",
+          status: "error",
+        };
+      }
+
+      const success = await dataService.saveDoctorData(
+        date,
+        doctor,
+        parsedData
+      );
+
+      if (success) {
+        return {
+          message: "Данные успешно сохранены",
+          status: "success",
+        };
+      } else {
+        return {
+          message: "Ошибка при сохранении данных",
+          status: "error",
+        };
+      }
+    } catch (error) {
+      console.error("Ошибка в save-file:", error);
       return {
-        message: "Успешная загрузка",
-        status: "success",
-        content: JSON.stringify(doctorData),
-      };
-    } else {
-      return {
-        message: "Данные для выбранного врача не найдены",
+        message: "Внутренняя ошибка при сохранении",
         status: "error",
       };
     }
   });
 
-  // Новый обработчик для получения списка врачей за конкретный день
+  // Загрузка данных
+  ipcMain.handle("open-file", async (event, args) => {
+    try {
+      const { date, doctor } = args;
+
+      // Если запрашиваются начальные данные
+      if (date === "initial") {
+        const initialData = await dataService.getInitialData();
+        return {
+          message: "Начальные данные загружены",
+          status: "success",
+          content: JSON.stringify(initialData),
+        };
+      }
+
+      if (!date || !doctor) {
+        return {
+          message: "Отсутствуют обязательные параметры",
+          status: "error",
+        };
+      }
+
+      // Проверяем, не является ли дата будущей
+      if (dataService.isFutureDate(date)) {
+        return {
+          message: "Нельзя просматривать данные для будущих дат",
+          status: "error",
+        };
+      }
+
+      const doctorData = await dataService.getDoctorData(date, doctor);
+
+      if (doctorData) {
+        return {
+          message: "Данные врача загружены",
+          status: "success",
+          content: JSON.stringify(doctorData),
+        };
+      } else {
+        // Если данных нет, создаем пустое состояние для текущего дня
+        if (dataService.isToday(date)) {
+          const emptyState = await dataService.createEmptyState(date, doctor);
+          return {
+            message: "Создано новое состояние",
+            status: "success",
+            content: JSON.stringify(emptyState),
+          };
+        } else {
+          return {
+            message: "Данные для выбранного врача и даты не найдены",
+            status: "error",
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Ошибка в open-file:", error);
+      return {
+        message: "Внутренняя ошибка при загрузке",
+        status: "error",
+      };
+    }
+  });
+
+  // Получение списка врачей по дате
   ipcMain.handle("get-doctors-by-date", async (event, args) => {
-    console.log(args);
-    const { date } = args;
+    try {
+      const { date } = args;
 
-    const dayData = await loadDayData(date);
-    const doctors = Object.keys(dayData);
+      if (!date) {
+        return {
+          message: "Дата не указана",
+          status: "error",
+          doctors: [],
+        };
+      }
 
-    return {
-      message: "Успешная загрузка списка врачей",
-      status: "success",
-      doctors,
-    };
+      // Проверяем, не является ли дата будущей
+      if (dataService.isFutureDate(date)) {
+        return {
+          message: "Нельзя просматривать данные для будущих дат",
+          status: "error",
+          doctors: [],
+        };
+      }
+
+      const doctors = await dataService.getDoctorsByDate(date);
+
+      return {
+        message:
+          doctors.length > 0
+            ? "Список врачей загружен"
+            : "Врачей за указанную дату не найдено",
+        status: "success",
+        doctors,
+      };
+    } catch (error) {
+      console.error("Ошибка в get-doctors-by-date:", error);
+      return {
+        message: "Внутренняя ошибка при получении списка врачей",
+        status: "error",
+        doctors: [],
+      };
+    }
+  });
+
+  // Новый хендлер для получения конфигурации
+  ipcMain.handle("get-config", async (event, args) => {
+    try {
+      const initialData = await dataService.getInitialData();
+      return {
+        message: "Конфигурация загружена",
+        status: "success",
+        content: JSON.stringify(initialData),
+      };
+    } catch (error) {
+      console.error("Ошибка в get-config:", error);
+      return {
+        message: "Ошибка при загрузке конфигурации",
+        status: "error",
+      };
+    }
+  });
+
+  // Новый хендлер для обновления конфигурации
+  ipcMain.handle("update-config", async (event, args) => {
+    try {
+      const { content } = args;
+
+      if (!content) {
+        return {
+          message: "Содержимое конфигурации не указано",
+          status: "error",
+        };
+      }
+
+      let parsedData;
+      try {
+        parsedData = JSON.parse(content);
+      } catch (parseError) {
+        return {
+          message: "Некорректный формат конфигурации",
+          status: "error",
+        };
+      }
+
+      // Валидируем конфигурацию
+      if (!dataService.validateData(parsedData)) {
+        return {
+          message: "Конфигурация не соответствует требуемой структуре",
+          status: "error",
+        };
+      }
+
+      const success = await dataService.saveInitialData(parsedData);
+
+      if (success) {
+        return {
+          message: "Конфигурация успешно обновлена",
+          status: "success",
+        };
+      } else {
+        return {
+          message: "Ошибка при сохранении конфигурации",
+          status: "error",
+        };
+      }
+    } catch (error) {
+      console.error("Ошибка в update-config:", error);
+      return {
+        message: "Внутренняя ошибка при обновлении конфигурации",
+        status: "error",
+      };
+    }
+  });
+
+  // Хендлер для получения текущей даты
+  ipcMain.handle("get-current-date", async (event, args) => {
+    try {
+      const currentDate = new Date().toISOString().split("T")[0];
+      return {
+        message: "Текущая дата получена",
+        status: "success",
+        date: currentDate,
+      };
+    } catch (error) {
+      console.error("Ошибка в get-current-date:", error);
+      return {
+        message: "Ошибка при получении текущей даты",
+        status: "error",
+      };
+    }
   });
 };

@@ -1,5 +1,4 @@
 import { app, BrowserWindow } from "electron";
-import { ensureConfigFile } from "./store";
 import { createWindow } from "./window";
 import { setupSecurityHeaders } from "./security";
 import { registerApi } from "./api";
@@ -7,9 +6,6 @@ import { registerApi } from "./api";
 console.log("App path:", __dirname);
 
 app.whenReady().then(async () => {
-  const config = await ensureConfigFile();
-  console.log("🛠 Загруженный конфиг:", config);
-
   // Создаем окно
   createWindow();
 
