@@ -57,7 +57,7 @@ const saveDayData = async (date: string, dayData: any): Promise<boolean> => {
 };
 
 // Регистрация всех IPC handlers
-export const registerHandlers = (): void => {
+export const registerApi = (): void => {
   ipcMain.handle("send-ping", async (event, arg) => {
     console.log(arg);
     return "pong";

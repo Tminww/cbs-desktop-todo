@@ -1,4 +1,4 @@
-import { BrowserWindow, session } from "electron";
+import { BrowserWindow } from "electron";
 import path from "path";
 
 export function createWindow(): BrowserWindow {
@@ -20,15 +20,4 @@ export function createWindow(): BrowserWindow {
   }
 
   return mainWindow;
-}
-
-export function setupSecurityHeaders(): void {
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        "Content-Security-Policy": ["script-src 'self'"],
-      },
-    });
-  });
 }

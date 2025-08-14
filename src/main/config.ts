@@ -1,40 +1,136 @@
-import { app } from "electron";
-import path from "path";
-import * as fs from "fs/promises";
-import initial from "./initial";
+const config = {
+  days: {
+    "12.12.1212": {
+      blocks: [],
+      doctors: [],
+    },
+  },
+  meta: {
+    blocks: [
+      {
+        label: "ПОМЕЩЕНИЯ ОТДЕЛЕНИЯ ПОСЛЕ ОКОНЧАНИЯ СМЕНЫ",
+        tasks: [
+          {
+            number: 1,
+            label: "БОКС ПРИЕМА ОБРАЗЦОВ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 2,
+            label: "БОКС ВРАЧЕБНО-АНАЛИТИЧЕСКИЙ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 3,
+            label: "БОКС АНАЛИТИЧЕСКИЙ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 4,
+            label: "БОКС ПОСЕВА ОБРАЗЦОВ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 5,
+            label: "АВТОКЛАВНЫЙ БОКС",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 6,
+            label: "ТЕРМОСТАТНЫЙ БОКС",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 7,
+            label: "БОКС ПОСЕВА ВОДЫ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 8,
+            label: "БОКС ПРИГОТОВЛЕНИЯ ПИТАТЕЛЬНЫХ СРЕД",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 9,
+            label: "МОЕЧНЫЙ БОКС",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 10,
+            label: "СТЕРИЛИЗАЦИОННЫЙ БОКС",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 11,
+            label: "БОКС ПРИЕМА ПИЩИ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+        ],
+      },
 
-const dataDir = path.join(app.getPath("userData"), "states");
-const configPath = path.join(dataDir, "state-initial.json");
+      {
+        label: "РАСХОДНЫЕ МАТЕРИАЛЫ",
+        tasks: [
+          {
+            number: 1,
+            label:
+              "КОНТРОЛЬ НАЛИЧИЯ РАСХОДНЫХ МАТЕРИАЛОВ (СРЕДЫ, БУТЫЛКИ, ТЕСТ-НАБОРЫ) ДЛЯ РАБОТЫ СЛЕДУЮЩЕЙ РАБОЧЕЙ СМЕНЫ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+        ],
+      },
+      {
+        label: "ТРЕБОВАНИЯ БЕЗОПАСНОСТИ",
+        tasks: [
+          {
+            number: 1,
+            label:
+              "КОНТРОЛЬ ОТКЛЮЧЕНИЯ ОБОРУДОВАНИЯ ИЗ РОЗЕТОК (ГДЕ НЕОБХОДИМО)",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 2,
+            label: "КОНТРОЛЬ ОТКЛЮЧЕНИЯ СВЕТА В ПОМЕЩЕНИЯХ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 3,
+            label: "КОНТРОЛЬ ВКЛЮЧЕНИЯ УФ В ПОМЕЩЕНИЯХ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+          {
+            number: 4,
+            label: "ПРОВЕРКА ЗАКРЫТИЯ ДВЕРЕЙ ОТДЕЛЕНИЯ",
+            status: { complete: false, notComplete: false },
+            description: "",
+          },
+        ],
+      },
+    ],
 
-export interface Config {
-  [key: string]: any;
-}
-
-// Функция для создания и чтения конфига
-export async function ensureConfigFile(): Promise<Config | null> {
-  try {
-    // Убедись, что папка существует
-    await fs.mkdir(dataDir, { recursive: true });
-
-    // Проверим, есть ли файл
-    try {
-      const raw = await fs.readFile(configPath, "utf8");
-      const parsed = JSON.parse(raw);
-      console.log("✅ Конфиг найден:", parsed);
-      return parsed;
-    } catch (readErr) {
-      console.log("⚠ Конфиг не найден, создаем новый...");
-
-      const defaultConfig = { ...initial };
-      await fs.writeFile(
-        configPath,
-        JSON.stringify(defaultConfig, null, 2),
-        "utf8"
-      );
-      return defaultConfig;
-    }
-  } catch (err) {
-    console.error("❌ Ошибка при работе с конфигом:", err);
-    return null;
-  }
-}
+    doctors: [
+      { name: "Иванов Иван Иванович 1" },
+      { name: "Иванов Иван Иванович 2" },
+      { name: "Иванов Иван Иванович 3" },
+      { name: "Иванов Иван Иванович 4" },
+      { name: "Иванов Иван Иванович 5" },
+      { name: "Иванов Иван Иванович 6" },
+      { name: "Иванов Иван Иванович 7" },
+    ],
+  },
+};
