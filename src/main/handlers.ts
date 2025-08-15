@@ -1,10 +1,11 @@
 import { ipcMain } from "electron";
 import { dataService } from "./service";
+import { appStore, Meta, Block, Doctor } from "./store";
 
 /**
  * Регистрация всех IPC handlers с использованием сервиса
  */
-export const registerApi = (): void => {
+export const registerHandlers = (): void => {
   // Тестовый хендлер
   ipcMain.handle("send-ping", async (event, arg) => {
     console.log("Ping received:", arg);
@@ -267,4 +268,51 @@ export const registerApi = (): void => {
       };
     }
   });
+
+  //new API
+
+  ipcMain.handle("get-doctors-meta", async (event) => {
+    try {
+      const response = appStore.store.meta.doctors;
+      return { status: "success", response };
+    } catch (e) {
+      return { status: "error", response: e };
+    }
+  });
+  ipcMain.handle("set-doctors-meta", async (event, doctors: Doctor[]) => {
+    const response = appStore.store.meta.doctors;
+    return response;
+  });
+
+  ipcMain.handle("get-blocks-meta", async (event) => {});
+  ipcMain.handle("set-blocks-meta", async (event, blocks: Block[]) => {});
+
+  ipcMain.handle("get-doctors-date-meta", async (event, date: string) => {});
+  ipcMain.handle(
+    "set-doctors-date-meta",
+    async (event, date: string, doctors: Doctor[]) => {}
+  );
+
+  ipcMain.handle("get-blocks-date-meta", async (event, date: string) => {});
+  ipcMain.handle(
+    "set-blocks-date-meta",
+    async (event, date: string, blocks: Block[]) => {}
+  );
+
+  ipcMain.handle(
+    "get-blocks-for-doctor",
+    async (event, date: string, doctorName: string) => {}
+  );
+  ipcMain.handle(
+    "set-blocks-for-doctor",
+    async (event, date: string, doctorName: string, blocks: Block[]) => {}
+  );
+
+  ipcMain.handle("get-meta", async (event) => {});
+  ipcMain.handle("set-meta", async (event, meta: Meta) => {});
+  ipcMain.handle(
+    "print-report",
+    async (event, date: string, doctorName: string) => {}
+  );
+  ipcMain.handle("get-current-date", async (event) => {});
 };

@@ -251,7 +251,12 @@ const timeoutActionStatus = (status) => {
 
     <div class="line">
       <span>Дата</span>
-      <input type="date" v-model="selectedDate" :max="currentDate" />
+      <input
+        type="date"
+        v-model="selectedDate"
+        :max="currentDate"
+        lang="ru-RU"
+      />
       <button @click="saveFile()" :disabled="saveButtonDisable">
         Сохранить
       </button>

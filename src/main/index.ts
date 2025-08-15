@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from "electron";
 import { createWindow } from "./window";
 import { setupSecurityHeaders } from "./security";
-import { registerApi } from "./api";
+import { registerHandlers } from "./handlers";
 
 console.log("App path:", __dirname);
 
@@ -13,7 +13,7 @@ app.whenReady().then(async () => {
   setupSecurityHeaders();
 
   // Регистрируем IPC api
-  registerApi();
+  registerHandlers();
 
   app.on("activate", function () {
     // On macOS it's common to re-create a window in the app when the
