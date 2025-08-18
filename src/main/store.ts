@@ -10,6 +10,18 @@ const storePath = path.join(dataDir, "store.json");
 /**
  * Класс для управления хранилищем приложения
  */
+
+const map = {
+  number: "n",
+  label: "l",
+  status: "s",
+  description: "d",
+  doctors: "d",
+  tasks: "t",
+  blocks: "b",
+  meta: "m",
+  name: "n",
+};
 class AppStore {
   private store: Store;
 

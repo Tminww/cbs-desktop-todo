@@ -7,38 +7,40 @@ const state = ref({});
 let autoSaveInterval = null;
 
 const currentBlocks = ref<Block[]>([]);
-const currentDate = ref(new Date().toISOString().split("T")[0]);
+let currentDate = new Date().toISOString().split("T")[0];
 const currentCheck = ref(false);
 const selectedDate = ref(currentDate);
 const selectedDoctor = ref("");
 const availableDoctors = ref<Doctor[]>([]);
 const actionStatus = ref("");
 const isReadonly = computed(() => {
-  return selectedDate.value !== currentDate.value;
+  return selectedDate.value !== currentDate;
 });
 onMounted(async () => {
-  currentDate.value = await api.getCurrentDate();
-  selectedDate.value = currentDate.value;
-  availableDoctors.value = await api.getDoctorsDateMeta(currentDate.value);
-  if (availableDoctors.value.length === 0) {
-    console.warn("Нет доступных врачей для текущей даты");
+  currentDate = await api.getCurrentDate();
+  selectedDate.value = currentDate;
+
+  availableDoctors.value = await api.getDoctorsDateMeta(selectedDate.value);
+  currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
+  if (availableDoctors.value.length === 0 && currentBlocks.value.length === 0) {
     availableDoctors.value = await api.getDoctorsMeta();
-    console.log("Available doctors:", availableDoctors.value);
-  }
-  selectedDoctor.value = availableDoctors.value[0]?.name || "";
-  currentBlocks.value = [
-    ...(await api.getBlocksForDoctor(currentDate.value, selectedDoctor.value)),
-  ];
-
-  if (currentBlocks.value.length === 0) {
-    console.warn("Нет блоков для текущего врача");
     currentBlocks.value = await api.getBlocksMeta();
-    console.log("Current blocks:", currentBlocks.value);
   }
 
-  console.log("Mounted ReportEditor:", await api.getBlocksMeta());
+  await api.setDoctorsDateMeta(
+    selectedDate.value,
+    deleteProxy(availableDoctors.value)
+  );
+
+  await api.setBlocksDateMeta(
+    selectedDate.value,
+    deleteProxy(currentBlocks.value)
+  );
 });
 
+const deleteProxy = (obj: any) => {
+  return JSON.parse(JSON.stringify(obj));
+};
 const checkAllComplete = () => {
   console.log("i work", currentCheck.value);
   currentBlocks.value.forEach((block) => {
@@ -57,30 +59,75 @@ const statusColor = computed(() => {
   return color;
 });
 
-watch(
-  currentBlocks,
-  async (newBlocks) => {
-    console.log("Blocks changed:", true);
-    if (newBlocks.length > 0) {
-      console.log("Watch work", newBlocks);
-      await api.setBlocksForDoctor(
-        selectedDate.value,
-        selectedDoctor.value,
-        JSON.parse(JSON.stringify(newBlocks))
-      );
-      await api.setDoctorsDateMeta(
-        currentDate.value,
-        JSON.parse(JSON.stringify(availableDoctors.value))
-      );
-      const metaBlocks = await api.getBlocksMeta();
-      await api.setBlocksDateMeta(
-        currentDate.value,
-        JSON.parse(JSON.stringify(metaBlocks))
-      );
-    }
-  },
-  { deep: true }
-);
+// watch(
+//   currentBlocks,
+//   async (newBlocks) => {
+//     if (newBlocks.length > 0) {
+//       console.log("currentBlocks changes", newBlocks, availableDoctors.value);
+//       const metaBlocks = await api.getBlocksMeta();
+//       await api.setBlocksDateMeta(
+//         currentDate.value,
+//         JSON.parse(JSON.stringify(metaBlocks))
+//       );
+//       const metaDateBlocks = await api.getBlocksDateMeta(selectedDate.value);
+//       if (
+//         metaDateBlocks.length !== 0 &&
+//         metaDateBlocks === currentBlocks.value
+//       ) {
+//         return;
+//       }
+
+//       await api.setBlocksForDoctor(
+//         selectedDate.value,
+//         selectedDoctor.value,
+//         JSON.parse(JSON.stringify(newBlocks))
+//       );
+//       await api.setDoctorsDateMeta(
+//         currentDate.value,
+//         JSON.parse(JSON.stringify(availableDoctors.value))
+//       );
+//     }
+//   },
+//   { deep: true }
+// );
+
+watch(selectedDate, async (newDate) => {
+  console.log("Watch Selected Date", newDate);
+  console.log("current Date", currentDate);
+  const doctors = await api.getDoctorsDateMeta(newDate);
+  const blocks = await api.getBlocksDateMeta(newDate);
+
+  availableDoctors.value = await api.getDoctorsDateMeta(newDate);
+  if (doctors.length === 0) {
+    console.warn("Нет доступных врачей для текущей даты");
+    availableDoctors.value = await api.getDoctorsMeta();
+    console.log("Available doctors:", availableDoctors.value);
+  } else {
+    availableDoctors.value = doctors;
+  }
+
+  if (blocks.length === 0) {
+    console.warn("Нет блоков для текущего врача");
+    currentBlocks.value = await api.getBlocksMeta();
+    console.log("Current blocks:", currentBlocks.value);
+  } else {
+    currentBlocks.value = blocks;
+  }
+});
+watch(selectedDoctor, async (newSelectedDoctor) => {
+  console.log("Watch", newSelectedDoctor);
+  if (newSelectedDoctor === "None") {
+    console.log("Доктор не выбран, пропускается");
+    return;
+  }
+  currentBlocks.value = await api.getBlocksForDoctor(
+    selectedDate.value,
+    newSelectedDoctor
+  );
+  if (currentBlocks.value.length === 0) {
+    currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
+  }
+});
 </script>
 
 <template>
@@ -115,10 +162,12 @@ watch(
       <select
         v-model="selectedDoctor"
         :disabled="availableDoctors.length === 0"
+        placeholder="Выберите врача"
       >
         <option value="" v-if="availableDoctors.length === 0">
           Нет данных за выбранную дату
         </option>
+
         <option
           v-for="doctor in availableDoctors"
           :value="doctor.name"

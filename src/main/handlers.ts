@@ -68,9 +68,8 @@ export const registerHandlers = (): void => {
     "get-doctors-date-meta",
     async (event, date: string): Promise<Doctor[]> => {
       try {
-        const dayData = await appStore.get(`days.${date}`, {});
-        const doctorNames = Object.keys(dayData);
-        return doctorNames.map((name) => ({ name }));
+        const doctors = await appStore.get(`days.${date}.meta.doctors`, []);
+        return doctors;
       } catch (error) {
         console.error("Ошибка в get-doctors-date-meta:", error);
         return [];
@@ -97,16 +96,8 @@ export const registerHandlers = (): void => {
     "get-blocks-date-meta",
     async (event, date: string): Promise<Block[]> => {
       try {
-        const dayData = await appStore.get(`days.${date}`, {});
-        const doctorNames = Object.keys(dayData);
-
-        if (doctorNames.length === 0) {
-          return [];
-        }
-
-        // Берем блоки от первого врача (они должны быть одинаковые у всех)
-        const firstDoctorData = dayData[doctorNames[0]];
-        return firstDoctorData?.blocks || [];
+        const blocks = await appStore.get(`days.${date}.meta.blocks`, []);
+        return blocks;
       } catch (error) {
         console.error("Ошибка в get-blocks-date-meta:", error);
         return [];
@@ -119,16 +110,7 @@ export const registerHandlers = (): void => {
     "set-blocks-date-meta",
     async (event, date: string, blocks: Block[]): Promise<Block[]> => {
       try {
-        const dayData = await appStore.get(`days.${date}`, {});
-        const doctorNames = Object.keys(dayData);
-
-        for (const doctorName of doctorNames) {
-          const doctorData = dayData[doctorName];
-          if (doctorData) {
-            doctorData.blocks = blocks;
-            await appStore.set(`days.${date}.${doctorName}`, doctorData);
-          }
-        }
+        await appStore.set(`days.${date}.meta.blocks`, blocks);
 
         return blocks;
       } catch (error) {
@@ -143,8 +125,11 @@ export const registerHandlers = (): void => {
     "get-blocks-for-doctor",
     async (event, date: string, doctorName: string): Promise<Block[]> => {
       try {
-        const doctorData = await appStore.get(`days.${date}.${doctorName}`);
-        return doctorData?.blocks || [];
+        const blocks = await appStore.get(
+          `days.${date}.${doctorName}.blocks`,
+          []
+        );
+        return blocks;
       } catch (error) {
         console.error("Ошибка в get-blocks-for-doctor:", error);
         return [];
@@ -217,27 +202,3 @@ export const registerHandlers = (): void => {
     }
   });
 };
-
-// ==================== UTILITY FUNCTIONS ====================
-
-/**
- * Проверяет, является ли дата будущей
- */
-function isFutureDate(dateStr: string): boolean {
-  const inputDate = new Date(dateStr);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  inputDate.setHours(0, 0, 0, 0);
-
-  return inputDate > today;
-}
-
-/**
- * Проверяет, является ли дата сегодняшней
- */
-function isToday(dateStr: string): boolean {
-  const inputDate = new Date(dateStr);
-  const today = new Date();
-
-  return inputDate.toDateString() === today.toDateString();
-}
