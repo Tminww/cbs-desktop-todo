@@ -1,35 +1,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from "vue";
-import { api, apiUtils } from "../api";
-
-// Интерфейсы
-interface Task {
-  number: number;
-  label: string;
-  state: { complete: boolean; notComplete: boolean };
-  description: string;
-}
-
-interface Block {
-  label: string;
-  tasks: Task[];
-}
-
-interface Doctor {
-  name: string;
-}
-
-interface Config {
-  doctors: Doctor[];
-  blocks: Block[];
-  date: string;
-}
-
+import { api } from "../../api";
+import { Doctor, Block, Meta, Task, Store } from "../../typings/index";
 // Реактивные данные
-const config = ref<Config>({
+const config = ref<Meta>({
   doctors: [],
   blocks: [],
-  date: "",
 });
 
 const actionStatus = ref<{ message: string; status: string } | null>(null);
@@ -57,13 +33,8 @@ onMounted(async () => {
 const loadConfig = async (): Promise<void> => {
   isLoading.value = true;
   try {
-    const response = await api.getConfig();
-    if (apiUtils.isSuccess(response) && response.content) {
-      config.value = JSON.parse(response.content);
-      showStatus("Конфигурация загружена", "success");
-    } else {
-      showStatus("Ошибка загрузки конфигурации", "error");
-    }
+    config.value = await api.getMeta();
+    showStatus("Конфигурация загружена", "success");
   } catch (error) {
     console.error("Ошибка загрузки конфигурации:", error);
     showStatus("Ошибка загрузки конфигурации", "error");
@@ -327,13 +298,6 @@ const exportConfig = (): void => {
       <h1>Редактор конфигурации</h1>
       <div class="header-actions">
         <button
-          @click="resetConfig"
-          class="btn btn-secondary"
-          :disabled="isLoading"
-        >
-          Сбросить
-        </button>
-        <button
           @click="exportConfig"
           class="btn btn-info"
           :disabled="isLoading"
@@ -381,25 +345,9 @@ const exportConfig = (): void => {
             :key="index"
             class="item-row"
           >
-            <div v-if="editingDoctor !== index" class="item-content">
-              <span class="item-text">{{ doctor.name }}</span>
-              <div class="item-actions">
-                <button
-                  @click="startEditingDoctor(index)"
-                  class="btn btn-sm btn-info"
-                >
-                  Изменить
-                </button>
-                <button
-                  @click="removeDoctor(index)"
-                  class="btn btn-sm btn-danger"
-                >
-                  Удалить
-                </button>
-              </div>
-            </div>
+            <div class="item-edit">
+              <div class="task-number">{{ index + 1 }}</div>
 
-            <div v-else class="item-edit">
               <input
                 v-model="doctor.name"
                 @keyup.enter="stopEditingDoctor"
@@ -511,10 +459,7 @@ const exportConfig = (): void => {
                 >
                   <div class="task-number">{{ task.number }}</div>
 
-                  <div
-                    v-if="!isEditingTask(blockIndex, taskIndex)"
-                    class="task-content"
-                  >
+                  <div class="task-content">
                     <span class="task-text">{{ task.label }}</span>
                     <div class="task-actions">
                       <button
@@ -546,7 +491,7 @@ const exportConfig = (): void => {
                     </div>
                   </div>
 
-                  <div v-else class="task-edit">
+                  <div class="task-edit">
                     <input
                       v-model="task.label"
                       @keyup.enter="stopEditingTask"
