@@ -104,7 +104,7 @@ export const api = {
    * Сохранить общие метаданные приложения
    * @param meta - объект метаданных
    */
-  setMeta: async (meta: Meta): Promise<void> => {
+  setMeta: async (meta: Meta): Promise<Meta> => {
     return await window.backend.setMeta(meta);
   },
 

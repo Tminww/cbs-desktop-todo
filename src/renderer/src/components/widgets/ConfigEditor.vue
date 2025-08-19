@@ -2,6 +2,8 @@
 import { ref, reactive, onMounted, computed } from "vue";
 import { api } from "../../api";
 import { Doctor, Block, Meta, Task, Store } from "../../typings/index";
+import { deleteProxy } from "../../utils";
+
 // Реактивные данные
 const config = ref<Meta>({
   doctors: [],
@@ -52,14 +54,13 @@ const saveConfig = async (): Promise<void> => {
 
   isLoading.value = true;
   try {
-    const response = await api.updateConfig({
-      content: JSON.stringify(config.value, null, 2),
-    });
+    const response = await api.setMeta(deleteProxy(config.value));
 
-    if (apiUtils.isSuccess(response)) {
+    if (response === config.value) {
       showStatus("Конфигурация сохранена", "success");
     } else {
-      showStatus(response.message, "error");
+      console.log(response, deleteProxy(config.value));
+      showStatus("При сохранении произошла ошибка", "error");
     }
   } catch (error) {
     console.error("Ошибка сохранения конфигурации:", error);
@@ -202,7 +203,7 @@ const addTask = (blockIndex: number): void => {
   const newTask: Task = {
     number: nextNumber,
     label: newTaskLabel.value.trim(),
-    state: { complete: false, notComplete: false },
+    status: { complete: false, notComplete: false },
     description: "",
   };
 
@@ -248,10 +249,6 @@ const moveTaskDown = (blockIndex: number, taskIndex: number): void => {
       task.number = index + 1;
     });
   }
-};
-
-const startEditingTask = (blockIndex: number, taskIndex: number): void => {
-  editingTask.value = blockIndex * 1000 + taskIndex; // Простое кодирование индексов
 };
 
 const stopEditingTask = (): void => {
@@ -339,24 +336,26 @@ const exportConfig = (): void => {
           </button>
         </div>
 
-        <div class="items-list">
-          <div
-            v-for="(doctor, index) in config.doctors"
-            :key="index"
-            class="item-row"
-          >
-            <div class="item-edit">
-              <div class="task-number">{{ index + 1 }}</div>
+        <div
+          v-for="(doctor, index) in config.doctors"
+          :key="index"
+          class="item-row"
+        >
+          <div class="item-edit">
+            <div class="task-number">{{ index + 1 }}</div>
 
-              <input
-                v-model="doctor.name"
-                @keyup.enter="stopEditingDoctor"
-                @blur="stopEditingDoctor"
-                class="input-field"
-                ref="doctorInput"
-              />
-              <button @click="stopEditingDoctor" class="btn btn-sm btn-success">
-                Готово
+            <input
+              v-model="doctor.name"
+              @keyup.enter="stopEditingDoctor"
+              @blur="stopEditingDoctor"
+              class="input-field"
+            />
+            <div class="block-actions">
+              <button
+                @click="removeDoctor(index)"
+                class="btn btn-xs btn-danger"
+              >
+                Удалить
               </button>
             </div>
           </div>
@@ -386,8 +385,13 @@ const exportConfig = (): void => {
           >
             <!-- Заголовок блока -->
             <div class="block-header">
-              <div v-if="editingBlock !== blockIndex" class="block-title">
-                <h3>{{ block.label }}</h3>
+              <div class="block-edit">
+                <input
+                  v-model="block.label"
+                  @keyup.enter="stopEditingBlock"
+                  @blur="stopEditingBlock"
+                  class="input-field block-input"
+                />
                 <div class="block-actions">
                   <button
                     @click="moveBlockUp(blockIndex)"
@@ -403,34 +407,14 @@ const exportConfig = (): void => {
                   >
                     ↓
                   </button>
-                  <button
-                    @click="startEditingBlock(blockIndex)"
-                    class="btn btn-sm btn-info"
-                  >
-                    Изменить
-                  </button>
+
                   <button
                     @click="removeBlock(blockIndex)"
                     class="btn btn-sm btn-danger"
                   >
-                    Удалить блок
+                    Удалить
                   </button>
                 </div>
-              </div>
-
-              <div v-else class="block-edit">
-                <input
-                  v-model="block.label"
-                  @keyup.enter="stopEditingBlock"
-                  @blur="stopEditingBlock"
-                  class="input-field block-input"
-                />
-                <button
-                  @click="stopEditingBlock"
-                  class="btn btn-sm btn-success"
-                >
-                  Готово
-                </button>
               </div>
             </div>
 
@@ -450,59 +434,41 @@ const exportConfig = (): void => {
                   Добавить задачу
                 </button>
               </div>
-
-              <div class="tasks-list">
-                <div
-                  v-for="(task, taskIndex) in block.tasks"
-                  :key="taskIndex"
-                  class="task-item"
-                >
+              <div
+                v-for="task in block.tasks"
+                :key="task.number"
+                class="item-row"
+              >
+                <div class="item-edit">
                   <div class="task-number">{{ task.number }}</div>
 
-                  <div class="task-content">
-                    <span class="task-text">{{ task.label }}</span>
-                    <div class="task-actions">
-                      <button
-                        @click="moveTaskUp(blockIndex, taskIndex)"
-                        :disabled="taskIndex === 0"
-                        class="btn btn-xs btn-secondary"
-                      >
-                        ↑
-                      </button>
-                      <button
-                        @click="moveTaskDown(blockIndex, taskIndex)"
-                        :disabled="taskIndex === block.tasks.length - 1"
-                        class="btn btn-xs btn-secondary"
-                      >
-                        ↓
-                      </button>
-                      <button
-                        @click="startEditingTask(blockIndex, taskIndex)"
-                        class="btn btn-xs btn-info"
-                      >
-                        Изменить
-                      </button>
-                      <button
-                        @click="removeTask(blockIndex, taskIndex)"
-                        class="btn btn-xs btn-danger"
-                      >
-                        Удалить
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="task-edit">
-                    <input
-                      v-model="task.label"
-                      @keyup.enter="stopEditingTask"
-                      @blur="stopEditingTask"
-                      class="input-field task-input"
-                    />
+                  <input
+                    v-model="task.label"
+                    @keyup.enter="stopEditingTask"
+                    @blur="stopEditingTask"
+                    class="input-field"
+                  />
+                  <div class="task-actions">
                     <button
-                      @click="stopEditingTask"
-                      class="btn btn-xs btn-success"
+                      @click="moveTaskUp(blockIndex, task.number - 1)"
+                      :disabled="task.number - 1 === 0"
+                      class="btn btn-xs btn-secondary"
                     >
-                      Готово
+                      ↑
+                    </button>
+                    <button
+                      @click="moveTaskDown(blockIndex, task.number - 1)"
+                      :disabled="task.number - 1 === block.tasks.length - 1"
+                      class="btn btn-xs btn-secondary"
+                    >
+                      ↓
+                    </button>
+
+                    <button
+                      @click="removeTask(blockIndex, task.number - 1)"
+                      class="btn btn-xs btn-danger"
+                    >
+                      Удалить
                     </button>
                   </div>
                 </div>
@@ -591,16 +557,8 @@ const exportConfig = (): void => {
   font-size: 14px;
 }
 
-.items-list,
-.blocks-list {
-  space-y: 10px;
-}
-
 .item-row {
-  padding: 12px;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .item-content,
@@ -620,6 +578,7 @@ const exportConfig = (): void => {
 .task-actions {
   display: flex;
   gap: 5px;
+  margin-left: 10px;
 }
 
 .block-item {

@@ -2,9 +2,7 @@
 import { ref, computed, onMounted, watch, watchEffect, onUnmounted } from "vue";
 import { api } from "../../api";
 import { Doctor, Block } from "../../../../types";
-
-const state = ref({});
-let autoSaveInterval = null;
+import { deleteProxy } from "../../utils";
 
 const currentBlocks = ref<Block[]>([]);
 let currentDate = new Date().toISOString().split("T")[0];
@@ -36,9 +34,6 @@ onMounted(async () => {
   );
 });
 
-const deleteProxy = (obj: any) => {
-  return JSON.parse(JSON.stringify(obj));
-};
 const checkAllComplete = () => {
   console.log("i work", currentCheck.value);
   currentBlocks.value.forEach((block) => {
