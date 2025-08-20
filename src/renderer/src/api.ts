@@ -100,12 +100,43 @@ export const api = {
     return await window.backend.getMeta();
   },
 
+  getDateMeta: async (date: string): Promise<Meta> => {
+    const meta = {
+      blocks: await window.backend.getBlocksDateMeta(date),
+      doctors: await window.backend.getDoctorsDateMeta(date),
+    };
+    return meta;
+  },
+
   /**
    * Сохранить общие метаданные приложения
    * @param meta - объект метаданных
    */
-  setMeta: async (meta: Meta): Promise<Meta> => {
+  setMeta: async (meta: Meta): Promise<Status> => {
     return await window.backend.setMeta(meta);
+  },
+
+  setDateMeta: async (date: string, meta: Meta): Promise<Status> => {
+    const blocksResponse = await window.backend.setBlocksDateMeta(
+      date,
+      meta.blocks
+    );
+    const doctorsResponse = await window.backend.setDoctorsDateMeta(
+      date,
+      meta.doctors
+    );
+    console.log(blocksResponse.status, doctorsResponse.status);
+    if (
+      blocksResponse.status === "success" &&
+      doctorsResponse.status === "success"
+    ) {
+      return { status: "success" };
+    } else {
+      return {
+        status: "error",
+        message: `${blocksResponse?.message} / ${doctorsResponse?.message}`,
+      };
+    }
   },
 
   /**

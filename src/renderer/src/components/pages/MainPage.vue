@@ -4,6 +4,10 @@ import ReportEditor from "../widgets/ReportEditor.vue";
 import ConfigEditor from "../widgets/ConfigEditor.vue";
 
 const currentPage = ref("report");
+
+function newFunction(): unknown {
+  return "toast-container";
+}
 </script>
 
 <template>
@@ -19,6 +23,7 @@ const currentPage = ref("report");
 
   <ReportEditor v-show="currentPage === 'report'" />
   <ConfigEditor v-show="currentPage === 'config'" />
+  <div id="toast" class="toast"></div>
 </template>
 
 <style scoped>

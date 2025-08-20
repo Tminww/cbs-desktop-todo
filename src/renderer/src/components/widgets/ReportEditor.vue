@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, watchEffect, onUnmounted } from "vue";
 import { api } from "../../api";
-import { Doctor, Block } from "../../../../types";
 import { deleteProxy } from "../../utils";
 
 const currentBlocks = ref<Block[]>([]);
@@ -39,6 +38,7 @@ const checkAllComplete = () => {
   currentBlocks.value.forEach((block) => {
     block.tasks.forEach((task) => {
       task.status.complete = !currentCheck.value;
+      task.status.notComplete = false;
     });
   });
 };
@@ -152,7 +152,7 @@ const restoreInitialState = async () => {
         v-model="selectedDoctor"
         :disabled="availableDoctors.length === 0"
       >
-        <option selected>Выберите врача</option>
+        <option selected disabled hidden>Выберите врача</option>
 
         <option value="" v-if="availableDoctors.length === 0">
           Нет данных за выбранную дату

@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from "vue";
+import { ref, reactive, onMounted, computed, watch } from "vue";
 import { api } from "../../api";
-import { Doctor, Block, Meta, Task, Store } from "../../typings/index";
-import { deleteProxy } from "../../utils";
+import { deleteProxy, showToast } from "../../utils";
 
 // Реактивные данные
 const config = ref<Meta>({
@@ -10,11 +9,16 @@ const config = ref<Meta>({
   blocks: [],
 });
 
+const globalEdit = ref(true);
+
 const actionStatus = ref<{ message: string; status: string } | null>(null);
 const isLoading = ref(false);
 const editingDoctor = ref(-1);
 const editingBlock = ref(-1);
 const editingTask = ref(-1);
+
+const selectedDate = ref();
+let currentDate = new Date().toISOString().split("T")[0];
 
 // Новые элементы для добавления
 const newDoctor = ref("");
@@ -24,11 +28,13 @@ const newTaskLabel = ref("");
 // Статус цвет
 const statusColor = computed(() => {
   if (!actionStatus.value) return "transparent";
-  return actionStatus.value.status === "error" ? "#ff4444" : "#44ff44";
+  return actionStatus.value.status === "error" ? "lightred" : "lightgreen";
 });
 
 onMounted(async () => {
   await loadConfig();
+  currentDate = await api.getCurrentDate();
+  selectedDate.value = currentDate;
 });
 
 // Загрузка конфигурации
@@ -36,10 +42,10 @@ const loadConfig = async (): Promise<void> => {
   isLoading.value = true;
   try {
     config.value = await api.getMeta();
-    showStatus("Конфигурация загружена", "success");
+    // showToast("Конфигурация загружена", "success");
   } catch (error) {
     console.error("Ошибка загрузки конфигурации:", error);
-    showStatus("Ошибка загрузки конфигурации", "error");
+    showToast("Ошибка загрузки конфигурации", "error");
   } finally {
     isLoading.value = false;
   }
@@ -48,23 +54,29 @@ const loadConfig = async (): Promise<void> => {
 // Сохранение конфигурации
 const saveConfig = async (): Promise<void> => {
   if (!validateConfig()) {
-    showStatus("Конфигурация содержит ошибки", "error");
+    showToast("Конфигурация содержит ошибки", "error");
     return;
   }
 
   isLoading.value = true;
   try {
-    const response = await api.setMeta(deleteProxy(config.value));
+    let response: Status = { status: "error" };
+    globalEdit.value
+      ? (response = await api.setMeta(deleteProxy(config.value)))
+      : (response = await api.setDateMeta(
+          selectedDate.value,
+          deleteProxy(config.value)
+        ));
 
-    if (response === config.value) {
-      showStatus("Конфигурация сохранена", "success");
+    if (response.status === "success") {
+      showToast("Конфигурация сохранена", "success");
     } else {
       console.log(response, deleteProxy(config.value));
-      showStatus("При сохранении произошла ошибка", "error");
+      showToast("При сохранении произошла ошибка", "error");
     }
   } catch (error) {
     console.error("Ошибка сохранения конфигурации:", error);
-    showStatus("Ошибка сохранения конфигурации", "error");
+    showToast("Ошибка сохранения конфигурации", "error");
   } finally {
     isLoading.value = false;
   }
@@ -108,7 +120,7 @@ const validateConfig = (): boolean => {
 // Управление врачами
 const addDoctor = (): void => {
   if (!newDoctor.value.trim()) {
-    showStatus("Введите имя врача", "error");
+    showToast("Введите имя врача", "error");
     return;
   }
 
@@ -117,24 +129,20 @@ const addDoctor = (): void => {
       (doctor) => doctor.name === newDoctor.value.trim()
     )
   ) {
-    showStatus("Врач с таким именем уже существует", "error");
+    showToast("Врач с таким именем уже существует", "error");
     return;
   }
 
   config.value.doctors.push({ name: newDoctor.value.trim() });
   newDoctor.value = "";
-  showStatus("Врач добавлен", "success");
+  showToast("Врач добавлен", "success");
 };
 
 const removeDoctor = (index: number): void => {
   if (confirm("Вы уверены, что хотите удалить этого врача?")) {
     config.value.doctors.splice(index, 1);
-    showStatus("Врач удален", "success");
+    showToast("Врач удален", "success");
   }
-};
-
-const startEditingDoctor = (index: number): void => {
-  editingDoctor.value = index;
 };
 
 const stopEditingDoctor = (): void => {
@@ -144,7 +152,7 @@ const stopEditingDoctor = (): void => {
 // Управление блоками
 const addBlock = (): void => {
   if (!newBlockLabel.value.trim()) {
-    showStatus("Введите название блока", "error");
+    showToast("Введите название блока", "error");
     return;
   }
 
@@ -155,13 +163,13 @@ const addBlock = (): void => {
 
   config.value.blocks.push(newBlock);
   newBlockLabel.value = "";
-  showStatus("Блок добавлен", "success");
+  showToast("Блок добавлен", "success");
 };
 
 const removeBlock = (index: number): void => {
   if (confirm("Вы уверены, что хотите удалить этот блок и все его задачи?")) {
     config.value.blocks.splice(index, 1);
-    showStatus("Блок удален", "success");
+    showToast("Блок удален", "success");
   }
 };
 
@@ -179,10 +187,6 @@ const moveBlockDown = (index: number): void => {
   }
 };
 
-const startEditingBlock = (index: number): void => {
-  editingBlock.value = index;
-};
-
 const stopEditingBlock = (): void => {
   editingBlock.value = -1;
 };
@@ -190,7 +194,7 @@ const stopEditingBlock = (): void => {
 // Управление задачами
 const addTask = (blockIndex: number): void => {
   if (!newTaskLabel.value.trim()) {
-    showStatus("Введите описание задачи", "error");
+    showToast("Введите описание задачи", "error");
     return;
   }
 
@@ -209,7 +213,7 @@ const addTask = (blockIndex: number): void => {
 
   block.tasks.push(newTask);
   newTaskLabel.value = "";
-  showStatus("Задача добавлена", "success");
+  showToast("Задача добавлена", "success");
 };
 
 const removeTask = (blockIndex: number, taskIndex: number): void => {
@@ -221,7 +225,7 @@ const removeTask = (blockIndex: number, taskIndex: number): void => {
       task.number = index + 1;
     });
 
-    showStatus("Задача удалена", "success");
+    showToast("Задача удалена", "success");
   }
 };
 
@@ -256,59 +260,45 @@ const stopEditingTask = (): void => {
 };
 
 // Утилиты
-const showStatus = (message: string, status: string): void => {
-  actionStatus.value = { message, status };
-  setTimeout(() => {
-    actionStatus.value = null;
-  }, 3000);
-};
 
-const resetConfig = async (): void => {
-  if (
-    confirm(
-      "Вы уверены, что хотите сбросить конфигурацию? Все изменения будут потеряны."
-    )
-  ) {
+watch(globalEdit, async (newGlobalEdit) => {
+  if (newGlobalEdit) {
     await loadConfig();
+  } else {
+    const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
+    const doctorsDateMeta = await api.getDoctorsDateMeta(selectedDate.value);
+    config.value = { blocks: blocksDateMeta, doctors: doctorsDateMeta };
   }
-};
+});
 
-const exportConfig = (): void => {
-  const dataStr = JSON.stringify(config.value, null, 2);
-  const dataUri =
-    "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
-
-  const exportFileDefaultName = `config-${
-    new Date().toISOString().split("T")[0]
-  }.json`;
-
-  const linkElement = document.createElement("a");
-  linkElement.setAttribute("href", dataUri);
-  linkElement.setAttribute("download", exportFileDefaultName);
-  linkElement.click();
-};
+watch(selectedDate, async (newSelected) => {
+  const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
+  const doctorsDateMeta = await api.getDoctorsDateMeta(selectedDate.value);
+  config.value = { blocks: blocksDateMeta, doctors: doctorsDateMeta };
+});
 </script>
 
 <template>
   <div class="config-editor">
-    <div class="header">
-      <h1>Редактор конфигурации</h1>
-      <div class="header-actions">
-        <button
-          @click="exportConfig"
-          class="btn btn-info"
-          :disabled="isLoading"
-        >
-          Экспорт
-        </button>
-        <button
-          @click="saveConfig"
-          class="btn btn-primary"
-          :disabled="isLoading"
-        >
-          {{ isLoading ? "Сохранение..." : "Сохранить" }}
-        </button>
+    <div class="line">
+      <span>Дата</span>
+      <input
+        type="date"
+        :disabled="globalEdit"
+        v-model="selectedDate"
+        :max="currentDate"
+        lang="ru-RU"
+      />
+      <!-- <button @click="saveFile()" :disabled="saveButtonDisable">
+        Сохранить
+      </button> -->
+      <div>
+        <input v-model="globalEdit" id="global" type="checkbox" />
+        <label for="global" class=""> Редактировать глобально</label>
       </div>
+      <button @click="saveConfig" class="btn btn-primary" :disabled="isLoading">
+        Сохранить
+      </button>
     </div>
 
     <!-- Статус -->
@@ -320,7 +310,7 @@ const exportConfig = (): void => {
       {{ actionStatus.message }}
     </div>
 
-    <div class="config-content">
+    <div>
       <!-- Секция врачей -->
       <div class="section">
         <h2>Врачи</h2>
@@ -509,6 +499,7 @@ const exportConfig = (): void => {
 }
 
 .status-message {
+  position: absolute;
   padding: 10px 15px;
   border-radius: 4px;
   color: white;
@@ -517,18 +508,20 @@ const exportConfig = (): void => {
 }
 
 .section {
-  background: white;
+  background-color: #f8f9fa;
   border-radius: 8px;
-  padding: 25px;
+  border: 1px solid #e9ecef;
+
+  padding: 15px;
   margin-bottom: 30px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .section h2 {
-  margin: 0 0 20px 0;
+  margin: 0 0 5px 0;
   color: #495057;
   border-bottom: 2px solid #f8f9fa;
-  padding-bottom: 10px;
+  padding-bottom: 5px;
 }
 
 .add-item {

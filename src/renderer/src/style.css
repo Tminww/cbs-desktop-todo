@@ -1,3 +1,16 @@
+:root {
+  --primary-500: #007bff;
+  --primary-600: #0056b3;
+  --success-500: #28a745;
+  --success-600: #1e7e34;
+  --secondary-500: #6c757d;
+  --secondary-600: #545b62;
+  --info-500: #17a2b8;
+  --info-600: #117a8b;
+  --danger-500: #dc3545;
+  --danger-600: #c82333;
+  font-size: 14px;
+}
 /* Скрываем полосу прокрутки */
 html {
   scrollbar-width: none; /* Firefox */
@@ -7,6 +20,34 @@ html {
 
 html::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Opera */
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #007bff;
+  color: white;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s ease;
+  min-width: 300px;
+  z-index: 1000;
+}
+
+.toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.toast.success {
+  background: #28a745;
+}
+.toast.error {
+  background: #dc3545;
 }
 
 /* Общие стили для контейнера */

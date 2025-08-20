@@ -1,13 +1,40 @@
 /**
  * Should match main/preload.ts for typescript support in renderer
  */
-export default interface ElectronApi {
+export default interface Backend {
+  getCurrentDate(): string | PromiseLike<string>;
+  printReport(date: string, doctors: Doctor[]): void | PromiseLike<void>;
+  setMeta(meta: Meta): Status | PromiseLike<Status>;
+  getMeta(): Meta | PromiseLike<Meta>;
+  setBlocksForDoctor(
+    date: string,
+    doctorName: string,
+    blocks: Block[]
+  ): void | PromiseLike<void>;
+  getBlocksForDoctor(
+    date: string,
+    doctorName: string
+  ): Block[] | PromiseLike<Block[]>;
+  setBlocksDateMeta(
+    date: string,
+    blocks: Block[]
+  ): Status | PromiseLike<Status>;
+  getBlocksDateMeta(date: string): Block[] | PromiseLike<Block[]>;
+  setDoctorsDateMeta(
+    date: string,
+    doctors: Doctor[]
+  ): Status | PromiseLike<Status>;
+  setBlocksMeta(blocks: Block[]): void | PromiseLike<void>;
+  getBlocksMeta(): Block[] | PromiseLike<Block[]>;
+  setDoctorsMeta(doctors: Doctor[]): void | PromiseLike<void>;
+  getDoctorsMeta(): Doctor[] | PromiseLike<Doctor[]>;
+  getDoctorsDateMeta(date: string): Doctor[] | PromiseLike<Doctor[]>;
   sendMessage: (message: string) => void;
 }
 
 declare global {
   interface Window {
-    electronAPI: ElectronApi;
+    backend: Backend;
   }
   interface Doctor {
     name: string;
@@ -41,5 +68,9 @@ declare global {
       };
     };
     meta: Meta;
+  }
+  interface Status {
+    status: "error" | "success";
+    message?: string;
   }
 }

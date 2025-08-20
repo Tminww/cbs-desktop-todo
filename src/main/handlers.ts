@@ -80,10 +80,10 @@ export const registerHandlers = (): void => {
   // Установка врачей для конкретной даты (создание пустых состояний)
   ipcMain.handle(
     "set-doctors-date-meta",
-    async (event, date: string, doctors: Doctor[]): Promise<Doctor[]> => {
+    async (event, date: string, doctors: Doctor[]): Promise<{}> => {
       try {
         await appStore.set(`days.${date}.meta.doctors`, doctors);
-        return doctors;
+        return { status: "success" };
       } catch (error) {
         console.error("Ошибка в set-doctors-date-meta:", error);
         throw error;
@@ -108,14 +108,14 @@ export const registerHandlers = (): void => {
   // Установка блоков для конкретной даты (обновляет у всех врачей)
   ipcMain.handle(
     "set-blocks-date-meta",
-    async (event, date: string, blocks: Block[]): Promise<Block[]> => {
+    async (event, date: string, blocks: Block[]): Promise<{}> => {
       try {
         await appStore.set(`days.${date}.meta.blocks`, blocks);
 
-        return blocks;
+        return { status: "success" };
       } catch (error) {
         console.error("Ошибка в set-blocks-date-meta:", error);
-        throw error;
+        return { status: "error", message: error };
       }
     }
   );
@@ -168,10 +168,10 @@ export const registerHandlers = (): void => {
   });
 
   // Установка всех мета-данных
-  ipcMain.handle("set-meta", async (event, meta: Meta): Promise<Meta> => {
+  ipcMain.handle("set-meta", async (event, meta: Meta): Promise<{}> => {
     try {
       await appStore.set("meta", meta);
-      return meta;
+      return { status: "success" };
     } catch (error) {
       console.error("Ошибка в set-meta:", error);
       throw error;
