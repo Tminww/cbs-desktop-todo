@@ -21,6 +21,7 @@ export interface Meta {
   doctors: Doctor[];
 }
 export interface Store {
+  title: string;
   days?: {
     [date: string]: {
       meta: Meta;

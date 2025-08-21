@@ -154,6 +154,17 @@ export const api = {
   getCurrentDate: async (): Promise<string> => {
     return await window.backend.getCurrentDate();
   },
+
+  clearStore: async () => {
+    await window.backend.clearStore();
+  },
+
+  getTitle: async () => {
+    return await window.backend.getTitle();
+  },
+  setTitle: async (title: string) => {
+    return await window.backend.setTitle(title);
+  },
 };
 
 export default api;

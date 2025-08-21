@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
+import { api } from "../../api";
+
 import ReportEditor from "../widgets/ReportEditor.vue";
 import ConfigEditor from "../widgets/ConfigEditor.vue";
-
 const currentPage = ref("report");
 
-function newFunction(): unknown {
-  return "toast-container";
-}
+onMounted(async () => {
+  title.value = await api.getTitle();
+});
+const title = ref("Подразделение");
+const updateTitle = (newTitle: string) => {
+  console.log("NEW TITLE", newTitle);
+  title.value = newTitle;
+};
 </script>
 
 <template>
   <div>
     <div class="title">
-      <h1>4 отделение ЦББ</h1>
+      <h1>{{ title }}</h1>
       <div class="nav">
         <button @click="currentPage = 'report'">Проверочный лист</button>
         <button @click="currentPage = 'config'">Конфигурация</button>
@@ -21,8 +27,8 @@ function newFunction(): unknown {
     </div>
   </div>
 
-  <ReportEditor v-show="currentPage === 'report'" />
-  <ConfigEditor v-show="currentPage === 'config'" />
+  <ReportEditor v-if="currentPage === 'report'" />
+  <ConfigEditor @update-title="updateTitle" v-show="currentPage === 'config'" />
   <div id="toast" class="toast"></div>
 </template>
 

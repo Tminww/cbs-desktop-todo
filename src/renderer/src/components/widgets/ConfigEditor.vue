@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { api } from "../../api";
 import { deleteProxy, showToast } from "../../utils";
 
+const emit = defineEmits<{
+  updateTitle: [newTitle: string];
+}>();
 // Реактивные данные
 const config = ref<Meta>({
   doctors: [],
   blocks: [],
 });
 
-const globalEdit = ref(true);
+const title = ref("");
+
+const editSelectedDate = ref(false);
 
 const actionStatus = ref<{ message: string; status: string } | null>(null);
 const isLoading = ref(false);
@@ -33,6 +38,8 @@ const statusColor = computed(() => {
 
 onMounted(async () => {
   await loadConfig();
+  title.value = await api.getTitle();
+  console.log("TITLE", title.value);
   currentDate = await api.getCurrentDate();
   selectedDate.value = currentDate;
 });
@@ -42,7 +49,8 @@ const loadConfig = async (): Promise<void> => {
   isLoading.value = true;
   try {
     config.value = await api.getMeta();
-    // showToast("Конфигурация загружена", "success");
+    // showToast(`Конфигурация загружена: ${config.value.blocks}`, "success");
+    console.log(config.value.blocks);
   } catch (error) {
     console.error("Ошибка загрузки конфигурации:", error);
     showToast("Ошибка загрузки конфигурации", "error");
@@ -60,13 +68,15 @@ const saveConfig = async (): Promise<void> => {
 
   isLoading.value = true;
   try {
+    const status = await api.setTitle(title.value);
+    emit("updateTitle", title.value);
     let response: Status = { status: "error" };
-    globalEdit.value
-      ? (response = await api.setMeta(deleteProxy(config.value)))
-      : (response = await api.setDateMeta(
+    editSelectedDate.value
+      ? (response = await api.setDateMeta(
           selectedDate.value,
           deleteProxy(config.value)
-        ));
+        ))
+      : (response = await api.setMeta(deleteProxy(config.value)));
 
     if (response.status === "success") {
       showToast("Конфигурация сохранена", "success");
@@ -84,14 +94,6 @@ const saveConfig = async (): Promise<void> => {
 
 // Валидация конфигурации
 const validateConfig = (): boolean => {
-  if (config.value.doctors.length === 0) {
-    return false;
-  }
-
-  if (config.value.blocks.length === 0) {
-    return false;
-  }
-
   // Проверяем, что все врачи имеют имена
   if (config.value.doctors.some((doctor) => !doctor.name.trim())) {
     return false;
@@ -135,13 +137,13 @@ const addDoctor = (): void => {
 
   config.value.doctors.push({ name: newDoctor.value.trim() });
   newDoctor.value = "";
-  showToast("Врач добавлен", "success");
+  showToast("Врач добавлен. Не забудьте сохранить изменения!", "success");
 };
 
 const removeDoctor = (index: number): void => {
   if (confirm("Вы уверены, что хотите удалить этого врача?")) {
     config.value.doctors.splice(index, 1);
-    showToast("Врач удален", "success");
+    showToast("Врач удален. Не забудьте сохранить изменения!", "success");
   }
 };
 
@@ -163,13 +165,13 @@ const addBlock = (): void => {
 
   config.value.blocks.push(newBlock);
   newBlockLabel.value = "";
-  showToast("Блок добавлен", "success");
+  showToast("Блок добавлен. Не забудьте сохранить изменения!", "success");
 };
 
 const removeBlock = (index: number): void => {
   if (confirm("Вы уверены, что хотите удалить этот блок и все его задачи?")) {
     config.value.blocks.splice(index, 1);
-    showToast("Блок удален", "success");
+    showToast("Блок удален. Не забудьте сохранить изменения!", "success");
   }
 };
 
@@ -213,7 +215,7 @@ const addTask = (blockIndex: number): void => {
 
   block.tasks.push(newTask);
   newTaskLabel.value = "";
-  showToast("Задача добавлена", "success");
+  showToast("Задача добавлена. Не забудьте сохранить изменения!", "success");
 };
 
 const removeTask = (blockIndex: number, taskIndex: number): void => {
@@ -225,7 +227,7 @@ const removeTask = (blockIndex: number, taskIndex: number): void => {
       task.number = index + 1;
     });
 
-    showToast("Задача удалена", "success");
+    showToast("Задача удалена. Не забудьте сохранить изменения!", "success");
   }
 };
 
@@ -261,44 +263,77 @@ const stopEditingTask = (): void => {
 
 // Утилиты
 
-watch(globalEdit, async (newGlobalEdit) => {
-  if (newGlobalEdit) {
-    await loadConfig();
+watch(editSelectedDate, async (newEditSelectedDate) => {
+  if (newEditSelectedDate) {
+    config.value = await api.getDateMeta(selectedDate.value);
+    console.log("СРАБОТАЛ WATCH на флажок редактирования даты");
   } else {
-    const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
-    const doctorsDateMeta = await api.getDoctorsDateMeta(selectedDate.value);
-    config.value = { blocks: blocksDateMeta, doctors: doctorsDateMeta };
+    await loadConfig();
   }
 });
 
-watch(selectedDate, async (newSelected) => {
+const loadConfigForSelectedDate = async () => {
+  console.log("Новая дата", selectedDate.value);
   const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
   const doctorsDateMeta = await api.getDoctorsDateMeta(selectedDate.value);
   config.value = { blocks: blocksDateMeta, doctors: doctorsDateMeta };
-});
+};
+
+const deleteConfig = async () => {
+  if (
+    confirm(
+      "Вы уверены, что хотите удалить все данные по врачам, задачам и заполненным отчетам?"
+    )
+  ) {
+    await api.clearStore();
+    config.value = await api.getMeta();
+  }
+};
+
+const toCurrentDate = async () => {
+  selectedDate.value = currentDate;
+  await loadConfigForSelectedDate();
+};
 </script>
 
 <template>
   <div class="config-editor">
     <div class="line">
-      <span>Дата</span>
-      <input
-        type="date"
-        :disabled="globalEdit"
-        v-model="selectedDate"
-        :max="currentDate"
-        lang="ru-RU"
-      />
+      <div class="flex-row">
+        <label for="dateConfig" class="dateReport"> Дата</label>
+        <input
+          id="dateConfig"
+          type="date"
+          :disabled="!editSelectedDate"
+          v-model="selectedDate"
+          :max="currentDate"
+          lang="ru-RU"
+          @change="loadConfigForSelectedDate"
+        />
+        <button @click="toCurrentDate" :disabled="!editSelectedDate">
+          Перейти к сегодняшней дате
+        </button>
+        <div class="block">
+          <label for="global" class=""> Редактировать конкретную дату</label>
+          <input v-model="editSelectedDate" id="global" type="checkbox" />
+        </div>
+      </div>
+      <div class="flex-row">
+        <button @click="deleteConfig" class="btn btn-danger">
+          Удалить все
+        </button>
+        <button
+          @click="saveConfig"
+          class="btn btn-primary"
+          :disabled="isLoading"
+        >
+          Сохранить
+        </button>
+      </div>
+
       <!-- <button @click="saveFile()" :disabled="saveButtonDisable">
         Сохранить
       </button> -->
-      <div>
-        <input v-model="globalEdit" id="global" type="checkbox" />
-        <label for="global" class=""> Редактировать глобально</label>
-      </div>
-      <button @click="saveConfig" class="btn btn-primary" :disabled="isLoading">
-        Сохранить
-      </button>
     </div>
 
     <!-- Статус -->
@@ -311,6 +346,16 @@ watch(selectedDate, async (newSelected) => {
     </div>
 
     <div>
+      <div class="section">
+        <h2>Подразделение</h2>
+        <div class="add-item">
+          <input
+            v-model="title"
+            placeholder="Введите название подразделения"
+            class="input-field"
+          />
+        </div>
+      </div>
       <!-- Секция врачей -->
       <div class="section">
         <h2>Врачи</h2>
@@ -321,9 +366,7 @@ watch(selectedDate, async (newSelected) => {
             placeholder="Введите ФИО врача"
             class="input-field"
           />
-          <button @click="addDoctor" class="btn btn-success">
-            Добавить врача
-          </button>
+          <button @click="addDoctor" class="">Добавить врача</button>
         </div>
 
         <div
@@ -341,10 +384,7 @@ watch(selectedDate, async (newSelected) => {
               class="input-field"
             />
             <div class="block-actions">
-              <button
-                @click="removeDoctor(index)"
-                class="btn btn-xs btn-danger"
-              >
+              <button @click="removeDoctor(index)" class="btn btn-danger">
                 Удалить
               </button>
             </div>
@@ -362,9 +402,7 @@ watch(selectedDate, async (newSelected) => {
             placeholder="Введите название блока"
             class="input-field"
           />
-          <button @click="addBlock" class="btn btn-success">
-            Добавить блок
-          </button>
+          <button @click="addBlock" class="">Добавить блок</button>
         </div>
 
         <div class="blocks-list">
@@ -386,21 +424,21 @@ watch(selectedDate, async (newSelected) => {
                   <button
                     @click="moveBlockUp(blockIndex)"
                     :disabled="blockIndex === 0"
-                    class="btn btn-sm btn-secondary"
+                    class=""
                   >
                     ↑
                   </button>
                   <button
                     @click="moveBlockDown(blockIndex)"
                     :disabled="blockIndex === config.blocks.length - 1"
-                    class="btn btn-sm btn-secondary"
+                    class=""
                   >
                     ↓
                   </button>
 
                   <button
                     @click="removeBlock(blockIndex)"
-                    class="btn btn-sm btn-danger"
+                    class="btn btn-danger"
                   >
                     Удалить
                   </button>
@@ -417,10 +455,7 @@ watch(selectedDate, async (newSelected) => {
                   placeholder="Введите описание задачи"
                   class="input-field"
                 />
-                <button
-                  @click="addTask(blockIndex)"
-                  class="btn btn-sm btn-success"
-                >
+                <button @click="addTask(blockIndex)" class="">
                   Добавить задачу
                 </button>
               </div>
@@ -442,21 +477,21 @@ watch(selectedDate, async (newSelected) => {
                     <button
                       @click="moveTaskUp(blockIndex, task.number - 1)"
                       :disabled="task.number - 1 === 0"
-                      class="btn btn-xs btn-secondary"
+                      class=""
                     >
                       ↑
                     </button>
                     <button
                       @click="moveTaskDown(blockIndex, task.number - 1)"
                       :disabled="task.number - 1 === block.tasks.length - 1"
-                      class="btn btn-xs btn-secondary"
+                      class=""
                     >
                       ↓
                     </button>
 
                     <button
                       @click="removeTask(blockIndex, task.number - 1)"
-                      class="btn btn-xs btn-danger"
+                      class="btn btn-danger"
                     >
                       Удалить
                     </button>
@@ -472,6 +507,15 @@ watch(selectedDate, async (newSelected) => {
 </template>
 
 <style scoped>
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+}
+label[for="dateConfig"] {
+  margin-right: 40px;
+}
 .config-editor {
   max-width: 1200px;
   margin: 0 auto;
@@ -538,7 +582,14 @@ watch(selectedDate, async (newSelected) => {
   font-size: 14px;
   flex: 1;
 }
-
+.input-field:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+.input-field:hover {
+  border-color: #5ca9fc;
+}
 .block-input {
   flex: 1;
   font-size: 16px;
@@ -647,78 +698,6 @@ watch(selectedDate, async (newSelected) => {
 .task-text {
   color: #495057;
   line-height: 1.4;
-}
-
-/* Кнопки */
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  text-decoration: none;
-  display: inline-block;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.btn-xs {
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #0056b3;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #545b62;
-}
-
-.btn-success {
-  background: #28a745;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #1e7e34;
-}
-
-.btn-info {
-  background: #17a2b8;
-  color: white;
-}
-
-.btn-info:hover:not(:disabled) {
-  background: #117a8b;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #c82333;
 }
 
 /* Адаптивность */

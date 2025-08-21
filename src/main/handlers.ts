@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { app, ipcMain } from "electron";
 import { Doctor, Block, Meta } from "../types";
 import { appStore } from "./store";
 
@@ -200,5 +200,23 @@ export const registerHandlers = (): void => {
       console.error("Ошибка в get-current-date:", error);
       throw error;
     }
+  });
+
+  ipcMain.handle("clear-store", async (event) => {
+    try {
+      await appStore.clear();
+    } catch (error) {}
+  });
+  ipcMain.handle("get-title", async (event) => {
+    try {
+      console.log("APPSTORE", await appStore.has("title"));
+      return await appStore.get("title", "");
+    } catch (error) {}
+  });
+  ipcMain.handle("set-title", async (event, title) => {
+    try {
+      await appStore.set("title", title);
+      return title;
+    } catch (error) {}
   });
 };

@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "cbs-electron-todo-list",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Electron + Vue application",
   "main": "out/main/index.cjs",
   "scripts": {

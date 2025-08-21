@@ -165,7 +165,12 @@ class AppStore {
    */
   async clear(): Promise<void> {
     try {
-      this.store = { ...store }; // Возвращаем к дефолтному состоянию
+      await this.backupStoreFile();
+      this.store = {
+        title: this.store.title,
+        days: {},
+        meta: { doctors: [], blocks: [] },
+      }; // Возвращаем к дефолтному состоянию
       await this.updateStoreFile();
       console.log("✅ Хранилище очищено");
     } catch (error) {
@@ -232,6 +237,21 @@ class AppStore {
 
       console.log("✅ Создан новый конфигурационный файл");
       return defaultConfig;
+    }
+  }
+  private async backupStoreFile() {
+    try {
+      await this.ensureDataDir();
+      const raw = await fs.readFile(storePath, "utf8");
+      const parsed = JSON.parse(raw);
+      await fs.writeFile(
+        path.join(dataDir, `store-backup-${new Date().getTime()}.json`),
+        JSON.stringify(parsed), // Без отступов
+        "utf8"
+      );
+    } catch (readErr) {
+      console.log("Возникла ошибка: ", readErr);
+      console.log("⚠ Конфиг не найден...");
     }
   }
 

@@ -35,4 +35,8 @@ contextBridge.exposeInMainWorld("backend", {
     ipcRenderer.invoke("print-report", date, doctor),
 
   getCurrentDate: (): Promise<string> => ipcRenderer.invoke("get-current-date"),
+
+  clearStore: (): Promise<void> => ipcRenderer.invoke("clear-store"),
+  getTitle: (): Promise<string> => ipcRenderer.invoke("get-title"),
+  setTitle: (title: string) => ipcRenderer.invoke("set-title", title),
 });

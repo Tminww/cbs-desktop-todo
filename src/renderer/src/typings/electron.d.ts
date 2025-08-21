@@ -2,6 +2,9 @@
  * Should match main/preload.ts for typescript support in renderer
  */
 export default interface Backend {
+  setTitle(title: string): Promise<string>;
+  getTitle(): Promise<string>;
+  clearStore(): unknown;
   getCurrentDate(): string | PromiseLike<string>;
   printReport(date: string, doctors: Doctor[]): void | PromiseLike<void>;
   setMeta(meta: Meta): Status | PromiseLike<Status>;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, watchEffect, onUnmounted } from "vue";
 import { api } from "../../api";
-import { deleteProxy } from "../../utils";
+import { deleteProxy, showToast } from "../../utils";
 
 const currentBlocks = ref<Block[]>([]);
 let currentDate = new Date().toISOString().split("T")[0];
@@ -17,8 +17,11 @@ onMounted(async () => {
 
   availableDoctors.value = await api.getDoctorsDateMeta(selectedDate.value);
   currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
-  if (availableDoctors.value.length === 0 && currentBlocks.value.length === 0) {
+  console.log(availableDoctors.value, currentBlocks.value);
+  if (availableDoctors.value.length === 0) {
     availableDoctors.value = await api.getDoctorsMeta();
+  }
+  if (currentBlocks.value.length === 0) {
     currentBlocks.value = await api.getBlocksMeta();
   }
 
@@ -31,6 +34,14 @@ onMounted(async () => {
     selectedDate.value,
     deleteProxy(currentBlocks.value)
   );
+
+  if (availableDoctors.value.length === 0 && currentBlocks.value.length === 0) {
+    showToast("Укажите врачей и задачи в редакторе конфигурации!", "warning");
+  } else if (availableDoctors.value.length === 0) {
+    showToast("Укажите врачей в редакторе конфигурации!", "warning");
+  } else if (currentBlocks.value.length === 0) {
+    showToast("Укажите задачи в редакторе конфигурации!", "warning");
+  }
 });
 
 const checkAllComplete = () => {
@@ -63,10 +74,11 @@ const saveReport = async () => {
   );
   console.log("SAVE");
 };
-watch(selectedDate, async (newDate) => {
-  console.log("Watch Selected Date", newDate);
-  const doctors = await api.getDoctorsDateMeta(newDate);
-  const blocks = await api.getBlocksDateMeta(newDate);
+
+const loadMetaForSelectedDate = async () => {
+  console.log("Selected Date", selectedDate.value);
+  const doctors = await api.getDoctorsDateMeta(selectedDate.value);
+  const blocks = await api.getBlocksDateMeta(selectedDate.value);
 
   if (doctors.length === 0) {
     console.warn("Нет доступных врачей для текущей даты");
@@ -77,21 +89,22 @@ watch(selectedDate, async (newDate) => {
   }
 
   if (blocks.length === 0) {
-    console.warn("Нет блоков для текущего врача");
     currentBlocks.value = await api.getBlocksMeta();
+    console.warn("Нет блоков для текущего врача");
     console.log("Current blocks:", currentBlocks.value);
   } else {
     currentBlocks.value = blocks;
   }
   selectedDoctor.value = "Выберите врача";
-  console.log(newDate === currentDate);
-  newDate === currentDate
+  console.log(selectedDate.value === currentDate);
+  selectedDate.value === currentDate
     ? (isReadonly.value = true)
     : (isReadonly.value = false);
-});
+};
+
 watch(selectedDoctor, async (newSelectedDoctor) => {
   console.log("Watch", newSelectedDoctor);
-  if (newSelectedDoctor === "Выберите врача") {
+  if (newSelectedDoctor === "") {
     console.log("Доктор не выбран, пропускается");
     return;
   }
@@ -100,11 +113,17 @@ watch(selectedDoctor, async (newSelectedDoctor) => {
     selectedDate.value,
     newSelectedDoctor
   );
+  console.log("NEW currentBlocks", blocksForDoctor);
 
   if (blocksForDoctor.length === 0) {
     const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
-    if (blocksDateMeta.length === 0)
+    console.log("NEW NEW currentBlocks", blocksDateMeta);
+
+    if (blocksDateMeta.length === 0) {
       currentBlocks.value = await api.getBlocksMeta();
+    } else {
+      currentBlocks.value = blocksDateMeta;
+    }
   } else {
     currentBlocks.value = blocksForDoctor;
   }
@@ -117,66 +136,84 @@ const isDoctorSelect = computed(() =>
 );
 
 const restoreInitialState = async () => {
-  currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
-  await api.setBlocksForDoctor(
-    selectedDate.value,
-    selectedDoctor.value,
-    deleteProxy(currentBlocks.value)
-  );
-  console.log("done");
+  if (confirm("Вы действительно хотите очистить форму?")) {
+    currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
+    await api.setBlocksForDoctor(
+      selectedDate.value,
+      selectedDoctor.value,
+      deleteProxy(currentBlocks.value)
+    );
+    console.log("restoreInitialState");
+  }
+};
+
+const toCurrentDate = async () => {
+  selectedDate.value = currentDate;
+  await loadMetaForSelectedDate();
 };
 </script>
 
 <template>
   <div class="container">
     <div class="line">
-      <span>Дата</span>
-      <input
-        type="date"
-        v-model="selectedDate"
-        :max="currentDate"
-        lang="ru-RU"
-      />
+      <div class="flex-row">
+        <label for="dateReport" class="dateReport"> Дата</label>
+        <input
+          @change="loadMetaForSelectedDate"
+          id="dateReport"
+          type="date"
+          v-model="selectedDate"
+          :max="currentDate"
+          lang="ru-RU"
+        />
+        <button @click="toCurrentDate">Перейти к сегодняшней дате</button>
+      </div>
+
       <!-- <button @click="saveFile()" :disabled="saveButtonDisable">
         Сохранить
       </button> -->
-      <button @click="restoreInitialState">Сбросить</button>
-      <div class="auto-save-indicator">
-        <span>🔄 Автосохранение включено</span>
-      </div>
     </div>
 
     <div class="line">
-      <span>ФИО врача</span>
-      <select
-        v-model="selectedDoctor"
-        :disabled="availableDoctors.length === 0"
-      >
-        <option selected disabled hidden>Выберите врача</option>
-
-        <option value="" v-if="availableDoctors.length === 0">
-          Нет данных за выбранную дату
-        </option>
-        <option
-          v-for="doctor in availableDoctors"
-          :value="doctor.name"
-          :key="doctor.name"
+      <div class="flex-row">
+        <label for="select" class=""> ФИО врача</label>
+        <select
+          id="select"
+          v-model="selectedDoctor"
+          :disabled="availableDoctors.length === 0"
         >
-          {{ doctor.name }}
-        </option>
-      </select>
+          <option selected disabled hidden>Выберите врача</option>
 
-      <div>
-        <span>Редактирование </span>
-        <input v-model="isReadonly" type="checkbox" />
+          <option value="" v-if="availableDoctors.length === 0">
+            Нет данных за выбранную дату
+          </option>
+          <option
+            v-for="doctor in availableDoctors"
+            :value="doctor.name"
+            :key="doctor.name"
+          >
+            {{ doctor.name }}
+          </option>
+        </select>
       </div>
-      <div>
-        <span>Отметить все</span>
-        <input
-          v-model="currentCheck"
-          @click="checkAllComplete()"
-          type="checkbox"
-        />
+      <div class="flex-row">
+        <div class="block">
+          <label for="edit" class=""> Редактировать</label>
+          <input v-model="isReadonly" id="edit" type="checkbox" />
+        </div>
+
+        <div class="block">
+          <label for="checkAll" class=""> Выбрать все</label>
+          <input
+            id="checkAll"
+            v-model="currentCheck"
+            @click="checkAllComplete()"
+            type="checkbox"
+          />
+        </div>
+        <button @click="restoreInitialState" class="btn btn-danger">
+          Очистить форму
+        </button>
       </div>
     </div>
 
@@ -214,7 +251,11 @@ const restoreInitialState = async () => {
                   v-model="task.status.complete"
                   :disabled="!isReadonly"
                   @click="saveReport"
-                  @change="task.status.notComplete = !task.status.complete"
+                  @change="
+                    task.status.complete
+                      ? (task.status.notComplete = false)
+                      : (task.status.complete = true)
+                  "
                 />
               </th>
               <th>
@@ -223,14 +264,17 @@ const restoreInitialState = async () => {
                   v-model="task.status.notComplete"
                   :disabled="!isReadonly"
                   @click="saveReport"
-                  @change="task.status.complete = !task.status.notComplete"
+                  @change="
+                    task.status.notComplete
+                      ? (task.status.complete = false)
+                      : (task.status.notComplete = true)
+                  "
                 />
               </th>
               <th>
                 <textarea
                   lang="ru-RU"
                   v-model="task.description"
-                  placeholder="Введите примечание..."
                   :readonly="!isReadonly"
                   inputmode="text"
                   spellcheck="true"
@@ -246,4 +290,14 @@ const restoreInitialState = async () => {
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+}
+label[for="dateReport"] {
+  margin-right: 40px;
+}
+</style>
