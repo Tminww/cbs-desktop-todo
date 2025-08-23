@@ -18,14 +18,15 @@
     "target": [
       {
         "target": "nsis",
-        "arch": ["ia32", "x64"]
+        "arch": ["ia32", "x64"],
+        "artifactName": "${productName}-release-${version}-${arch}.${ext}"
       },
       {
         "target": "portable",
-        "arch": ["x64", "ia32"]
+        "arch": ["x64", "ia32"],
+        "artifactName": "${productName}-portable-release-${version}-${arch}.${ext}"
       }
-    ],
-    "artifactName": "${productName}-release-${version}-${arch}.${ext}"
+    ]
   },
   "nsis": {
     "oneClick": false,
