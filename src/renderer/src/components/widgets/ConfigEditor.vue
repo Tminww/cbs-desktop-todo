@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from "vue";
-import { api } from "../../api";
-import { deleteProxy, showToast } from "../../utils";
-
+import { api } from "@renderer/api";
+import { deleteProxy } from "@renderer/utils";
+import { useConfirm } from "@renderer/composables/useConfirm";
+import { useToast } from "@renderer/composables/useToast";
 const emit = defineEmits<{
   updateTitle: [newTitle: string];
 }>();
@@ -11,6 +12,9 @@ const config = ref<Meta>({
   doctors: [],
   blocks: [],
 });
+
+const { confirm } = useConfirm();
+const { toast } = useToast();
 
 const title = ref("");
 
@@ -53,7 +57,7 @@ const loadConfig = async (): Promise<void> => {
     console.log(config.value.blocks);
   } catch (error) {
     console.error("Ошибка загрузки конфигурации:", error);
-    showToast("Ошибка загрузки конфигурации", "error");
+    toast.error("Ошибка загрузки конфигурации");
   } finally {
     isLoading.value = false;
   }
@@ -62,7 +66,7 @@ const loadConfig = async (): Promise<void> => {
 // Сохранение конфигурации
 const saveConfig = async (): Promise<void> => {
   if (!validateConfig()) {
-    showToast("Конфигурация содержит ошибки", "error");
+    toast.error("Конфигурация содержит ошибки");
     return;
   }
 
@@ -79,14 +83,14 @@ const saveConfig = async (): Promise<void> => {
       : (response = await api.setMeta(deleteProxy(config.value)));
 
     if (response.status === "success") {
-      showToast("Конфигурация сохранена", "success");
+      toast.success("Конфигурация сохранена");
     } else {
       console.log(response, deleteProxy(config.value));
-      showToast("При сохранении произошла ошибка", "error");
+      toast.error("При сохранении произошла ошибка");
     }
   } catch (error) {
     console.error("Ошибка сохранения конфигурации:", error);
-    showToast("Ошибка сохранения конфигурации", "error");
+    toast.error("Ошибка сохранения конфигурации");
   } finally {
     isLoading.value = false;
   }
@@ -122,7 +126,7 @@ const validateConfig = (): boolean => {
 // Управление врачами
 const addDoctor = (): void => {
   if (!newDoctor.value.trim()) {
-    showToast("Введите имя врача", "error");
+    toast.error("Введите имя врача");
     return;
   }
 
@@ -131,19 +135,19 @@ const addDoctor = (): void => {
       (doctor) => doctor.name === newDoctor.value.trim()
     )
   ) {
-    showToast("Врач с таким именем уже существует", "error");
+    toast.error("Врач с таким именем уже существует");
     return;
   }
 
   config.value.doctors.push({ name: newDoctor.value.trim() });
   newDoctor.value = "";
-  showToast("Врач добавлен. Не забудьте сохранить изменения!", "success");
+  toast.success("Врач добавлен. ");
 };
 
-const removeDoctor = (index: number): void => {
-  if (confirm("Вы уверены, что хотите удалить этого врача?")) {
+const removeDoctor = async (index: number) => {
+  if (await confirm("Вы уверены, что хотите удалить этого врача?")) {
     config.value.doctors.splice(index, 1);
-    showToast("Врач удален. Не забудьте сохранить изменения!", "success");
+    toast.success("Врач удален. ");
   }
 };
 
@@ -154,7 +158,7 @@ const stopEditingDoctor = (): void => {
 // Управление блоками
 const addBlock = (): void => {
   if (!newBlockLabel.value.trim()) {
-    showToast("Введите название блока", "error");
+    toast.error("Введите название блока");
     return;
   }
 
@@ -165,13 +169,15 @@ const addBlock = (): void => {
 
   config.value.blocks.push(newBlock);
   newBlockLabel.value = "";
-  showToast("Блок добавлен. Не забудьте сохранить изменения!", "success");
+  toast.success("Блок добавлен. ");
 };
 
-const removeBlock = (index: number): void => {
-  if (confirm("Вы уверены, что хотите удалить этот блок и все его задачи?")) {
+const removeBlock = async (index: number) => {
+  if (
+    await confirm("Вы уверены, что хотите удалить этот блок и все его задачи?")
+  ) {
     config.value.blocks.splice(index, 1);
-    showToast("Блок удален. Не забудьте сохранить изменения!", "success");
+    toast.success("Блок удален. ");
   }
 };
 
@@ -196,7 +202,7 @@ const stopEditingBlock = (): void => {
 // Управление задачами
 const addTask = (blockIndex: number): void => {
   if (!newTaskLabel.value.trim()) {
-    showToast("Введите описание задачи", "error");
+    toast.error("Введите описание задачи");
     return;
   }
 
@@ -215,11 +221,11 @@ const addTask = (blockIndex: number): void => {
 
   block.tasks.push(newTask);
   newTaskLabel.value = "";
-  showToast("Задача добавлена. Не забудьте сохранить изменения!", "success");
+  toast.success("Задача добавлена. ");
 };
 
-const removeTask = (blockIndex: number, taskIndex: number): void => {
-  if (confirm("Вы уверены, что хотите удалить эту задачу?")) {
+const removeTask = async (blockIndex: number, taskIndex: number) => {
+  if (await confirm("Вы уверены, что хотите удалить эту задачу?")) {
     config.value.blocks[blockIndex].tasks.splice(taskIndex, 1);
 
     // Перенумеруем оставшиеся задачи
@@ -227,7 +233,7 @@ const removeTask = (blockIndex: number, taskIndex: number): void => {
       task.number = index + 1;
     });
 
-    showToast("Задача удалена. Не забудьте сохранить изменения!", "success");
+    toast.success("Задача удалена. ");
   }
 };
 
@@ -281,7 +287,7 @@ const loadConfigForSelectedDate = async () => {
 
 const deleteConfig = async () => {
   if (
-    confirm(
+    await confirm(
       "Вы уверены, что хотите удалить все данные по врачам, задачам и заполненным отчетам?"
     )
   ) {

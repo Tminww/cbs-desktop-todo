@@ -13,7 +13,10 @@
     "dist:win64": "electron-vite build && electron-builder --win --x64 --publish=never",
     "dist:mac": "electron-vite build && electron-builder --mac --publish=never",
     "dist:linux": "electron-vite build && electron-builder --linux --publish=never",
-    "preview": "electron-vite preview"
+    "preview": "electron-vite preview",
+    "release:patch": "npm version patch && git push --follow-tags",
+    "release:minor": "npm version minor && git push --follow-tags",
+    "release:major": "npm version major && git push --follow-tags"
   },
   "author": {
     "name": "Tminww",

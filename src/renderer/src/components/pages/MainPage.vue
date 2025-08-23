@@ -29,7 +29,6 @@ const updateTitle = (newTitle: string) => {
 
   <ReportEditor v-if="currentPage === 'report'" />
   <ConfigEditor @update-title="updateTitle" v-show="currentPage === 'config'" />
-  <div id="toast" class="toast"></div>
 </template>
 
 <style scoped>

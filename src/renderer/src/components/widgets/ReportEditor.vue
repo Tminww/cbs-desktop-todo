@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, watchEffect, onUnmounted } from "vue";
-import { api } from "../../api";
-import { deleteProxy, showToast } from "../../utils";
+import { api } from "@renderer/api";
+import { deleteProxy } from "@renderer/utils";
+import { useConfirm } from "@renderer/composables/useConfirm";
+import { useToast } from "@renderer/composables/useToast";
+
+const { confirm } = useConfirm();
+const { toast } = useToast();
 
 const currentBlocks = ref<Block[]>([]);
 let currentDate = new Date().toISOString().split("T")[0];
@@ -36,11 +41,11 @@ onMounted(async () => {
   );
 
   if (availableDoctors.value.length === 0 && currentBlocks.value.length === 0) {
-    showToast("Укажите врачей и задачи в редакторе конфигурации!", "warning");
+    toast.warning("Укажите врачей и задачи в редакторе конфигурации!");
   } else if (availableDoctors.value.length === 0) {
-    showToast("Укажите врачей в редакторе конфигурации!", "warning");
+    toast.warning("Укажите врачей в редакторе конфигурации!");
   } else if (currentBlocks.value.length === 0) {
-    showToast("Укажите задачи в редакторе конфигурации!", "warning");
+    toast.warning("Укажите задачи в редакторе конфигурации!");
   }
 });
 
@@ -136,7 +141,7 @@ const isDoctorSelect = computed(() =>
 );
 
 const restoreInitialState = async () => {
-  if (confirm("Вы действительно хотите очистить форму?")) {
+  if (await confirm("Вы действительно хотите очистить форму?")) {
     currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
     await api.setBlocksForDoctor(
       selectedDate.value,
