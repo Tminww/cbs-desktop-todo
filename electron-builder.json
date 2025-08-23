@@ -19,6 +19,10 @@
       {
         "target": "nsis",
         "arch": ["ia32", "x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64", "ia32"]
       }
     ],
     "artifactName": "${productName}-release-${version}-${arch}.${ext}"
