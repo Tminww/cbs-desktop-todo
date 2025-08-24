@@ -3,10 +3,9 @@ import { ref, computed, onMounted, watch, watchEffect, onUnmounted } from "vue";
 import { api } from "@renderer/api";
 import { deleteProxy } from "@renderer/utils";
 import { useConfirm } from "@renderer/composables/useConfirm";
-import { useToast } from "@renderer/composables/useToast";
+import { toast } from "vue-sonner";
 
 const { confirm } = useConfirm();
-const { toast } = useToast();
 
 const currentBlocks = ref<Block[]>([]);
 let currentDate = new Date().toISOString().split("T")[0];

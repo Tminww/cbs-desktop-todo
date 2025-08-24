@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch } from "vue";
 import { api } from "@renderer/api";
 import { deleteProxy } from "@renderer/utils";
 import { useConfirm } from "@renderer/composables/useConfirm";
-import { useToast } from "@renderer/composables/useToast";
+import { toast } from "vue-sonner";
 const emit = defineEmits<{
   updateTitle: [newTitle: string];
 }>();
@@ -14,7 +14,6 @@ const config = ref<Meta>({
 });
 
 const { confirm } = useConfirm();
-const { toast } = useToast();
 
 const title = ref("");
 

@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { Toaster } from "vue-sonner";
 import MainPage from "@renderer/components/pages/MainPage.vue";
 import ConfirmDialog from "@renderer/components/widgets/ConfirmDialog.vue";
 import { useConfirm } from "@renderer/composables/useConfirm";
-import ToastContainer from "@renderer/components/widgets/ToastContainer.vue";
+
 const { confirmState, handleConfirm, handleCancel } = useConfirm();
 </script>
 
@@ -17,7 +18,8 @@ const { confirmState, handleConfirm, handleCancel } = useConfirm();
     @confirm="handleConfirm"
     @cancel="handleCancel"
   />
-  <ToastContainer />
+
+  <Toaster richColors position="top-right" :expand="false" />
 </template>
 
 <style scoped></style>
