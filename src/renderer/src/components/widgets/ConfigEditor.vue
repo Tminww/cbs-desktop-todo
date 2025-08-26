@@ -74,12 +74,22 @@ const saveConfig = async (): Promise<void> => {
     const status = await api.setTitle(title.value);
     emit("updateTitle", title.value);
     let response: Status = { status: "error" };
-    editSelectedDate.value
-      ? (response = await api.setDateMeta(
-          selectedDate.value,
-          deleteProxy(config.value)
-        ))
-      : (response = await api.setMeta(deleteProxy(config.value)));
+    if (editSelectedDate.value) {
+      response = await api.setDateMeta(
+        selectedDate.value,
+        deleteProxy(config.value)
+      );
+    } else {
+      {
+        response = await api.setMeta(deleteProxy(config.value));
+        if (response.status === "success") {
+          response = await api.setDateMeta(
+            currentDate,
+            deleteProxy(config.value)
+          );
+        }
+      }
+    }
 
     if (response.status === "success") {
       toast.success("Конфигурация сохранена");
