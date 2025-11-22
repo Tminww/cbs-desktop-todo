@@ -71,32 +71,25 @@ const saveConfig = async (): Promise<void> => {
 
   isLoading.value = true;
   try {
-    const status = await api.setTitle(title.value);
+    // 1. Сохраняем заголовок
+    await api.setTitle(title.value);
     emit("updateTitle", title.value);
-    let response: Status = { status: "error" };
-    if (editSelectedDate.value) {
-      response = await api.setDateMeta(
-        selectedDate.value,
-        deleteProxy(config.value)
-      );
-    } else {
-      {
-        response = await api.setMeta(deleteProxy(config.value));
-        if (response.status === "success") {
-          response = await api.setDateMeta(
-            currentDate,
-            deleteProxy(config.value)
-          );
-        }
-      }
+
+    const configToSave = deleteProxy(config.value);
+
+    // 2. Сохраняем глобально
+    await api.setMeta(configToSave);
+
+    // 3. Сохраняем для текущей даты
+    await api.setDateMeta(currentDate, configToSave);
+
+    // 4. Если редактируем конкретную дату (и это не сегодня), 
+    //    сохраняем и для неё
+    if (editSelectedDate.value && selectedDate.value !== currentDate) {
+      await api.setDateMeta(selectedDate.value, configToSave);
     }
 
-    if (response.status === "success") {
-      toast.success("Конфигурация сохранена");
-    } else {
-      console.log(response, deleteProxy(config.value));
-      toast.error("При сохранении произошла ошибка");
-    }
+    toast.success("Конфигурация сохранена");
   } catch (error) {
     console.error("Ошибка сохранения конфигурации:", error);
     toast.error("Ошибка сохранения конфигурации");
