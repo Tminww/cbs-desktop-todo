@@ -1,307 +1,324 @@
+<!-- src/renderer/src/components/widgets/ReportEditor.vue -->
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, watchEffect, onUnmounted } from "vue";
-import { api } from "@renderer/api";
-import { deleteProxy } from "@renderer/utils";
-import { useConfirm } from "@renderer/composables/useConfirm";
-import { toast } from "vue-sonner";
+import { ref, computed, onMounted, watch } from 'vue';
+import { api } from '@renderer/api';
+import { deleteProxy } from '@renderer/utils';
+import { useConfirm } from '@renderer/composables/useConfirm';
+import { toast } from 'vue-sonner';
+import Button from 'primevue/button';
+import Calendar from 'primevue/calendar';
+import Dropdown from 'primevue/dropdown';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Checkbox from 'primevue/checkbox';
+import InputTextarea from 'primevue/textarea';
+import Card from 'primevue/card';
+import Toolbar from 'primevue/toolbar';
+import InputSwitch from 'primevue/inputswitch';
 
 const { confirm } = useConfirm();
 
 const currentBlocks = ref<Block[]>([]);
-let currentDate = new Date().toISOString().split("T")[0];
-const currentCheck = ref(false);
-const selectedDate = ref(currentDate);
-const selectedDoctor = ref("Выберите врача");
+let currentDate = new Date().toISOString().split('T')[0];
+const selectedDate = ref(new Date());
+const selectedDoctor = ref<Doctor | null>(null);
 const availableDoctors = ref<Doctor[]>([]);
-const isReadonly = ref(true);
+const isReadonly = ref(false);
+const selectAllComplete = ref(false);
 
 onMounted(async () => {
   currentDate = await api.getCurrentDate();
-  selectedDate.value = currentDate;
+  selectedDate.value = new Date(currentDate);
+  await loadMetaForSelectedDate();
+});
 
-  availableDoctors.value = await api.getDoctorsDateMeta(selectedDate.value);
-  currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
-  console.log(availableDoctors.value, currentBlocks.value);
-  if (availableDoctors.value.length === 0) {
-    availableDoctors.value = await api.getDoctorsMeta();
-  }
-  if (currentBlocks.value.length === 0) {
-    currentBlocks.value = await api.getBlocksMeta();
-  }
+const loadMetaForSelectedDate = async () => {
+  const dateStr = selectedDate.value.toISOString().split('T')[0];
+  const doctors = await api.getDoctorsDateMeta(dateStr);
+  const blocks = await api.getBlocksDateMeta(dateStr);
 
-  await api.setDoctorsDateMeta(
-    selectedDate.value,
-    deleteProxy(availableDoctors.value)
-  );
+  availableDoctors.value = doctors.length === 0 ? await api.getDoctorsMeta() : doctors;
+  currentBlocks.value = blocks.length === 0 ? await api.getBlocksMeta() : blocks;
 
-  await api.setBlocksDateMeta(
-    selectedDate.value,
-    deleteProxy(currentBlocks.value)
-  );
+  selectedDoctor.value = null;
+  isReadonly.value = dateStr !== currentDate;
+};
 
-  if (availableDoctors.value.length === 0 && currentBlocks.value.length === 0) {
-    toast.warning("Укажите врачей и задачи в редакторе конфигурации!");
-  } else if (availableDoctors.value.length === 0) {
-    toast.warning("Укажите врачей в редакторе конфигурации!");
-  } else if (currentBlocks.value.length === 0) {
-    toast.warning("Укажите задачи в редакторе конфигурации!");
+watch(selectedDoctor, async (newDoctor) => {
+  if (!newDoctor) return;
+
+  const dateStr = selectedDate.value.toISOString().split('T')[0];
+  const report = await api.getReport(dateStr, newDoctor.id);
+
+  if (report) {
+    currentBlocks.value = report.blocks;
+  } else {
+    const blocks = await api.getBlocksDateMeta(dateStr);
+    currentBlocks.value = blocks.length === 0 ? await api.getBlocksMeta() : blocks;
   }
 });
 
+const saveReport = async () => {
+  if (!selectedDoctor.value) {
+    toast.error('Выберите врача');
+    return;
+  }
+
+  try {
+    const dateStr = selectedDate.value.toISOString().split('T')[0];
+    await api.saveReport(dateStr, selectedDoctor.value.id, deleteProxy(currentBlocks.value));
+    toast.success('Отчет сохранен');
+  } catch (error) {
+    toast.error('Ошибка сохранения');
+    console.error(error);
+  }
+};
+
 const checkAllComplete = () => {
-  console.log("i work", currentCheck.value);
-  currentBlocks.value.forEach((block) => {
-    block.tasks.forEach((task) => {
-      task.status.complete = !currentCheck.value;
+  currentBlocks.value.forEach(block => {
+    block.tasks.forEach(task => {
+      task.status.complete = !selectAllComplete.value;
       task.status.notComplete = false;
     });
   });
 };
 
-const saveReport = async () => {
-  const metaDateBlocks = await api.getBlocksDateMeta(selectedDate.value);
-  const metaDateDoctors = await api.getDoctorsDateMeta(selectedDate.value);
-
-  if (metaDateBlocks.length === 0) {
-    const metaBlocks = await api.getBlocksMeta();
-    await api.setBlocksDateMeta(selectedDate.value, metaBlocks);
-  }
-  if (metaDateDoctors.length === 0) {
-    const metaDoctors = await api.getDoctorsMeta();
-    await api.setDoctorsDateMeta(selectedDate.value, metaDoctors);
-  }
-
-  await api.setBlocksForDoctor(
-    selectedDate.value,
-    selectedDoctor.value,
-    deleteProxy(currentBlocks.value)
-  );
-  console.log("SAVE");
-};
-
-const loadMetaForSelectedDate = async () => {
-  console.log("Selected Date", selectedDate.value);
-  const doctors = await api.getDoctorsDateMeta(selectedDate.value);
-  const blocks = await api.getBlocksDateMeta(selectedDate.value);
-
-  if (doctors.length === 0) {
-    console.warn("Нет доступных врачей для текущей даты");
-    availableDoctors.value = await api.getDoctorsMeta();
-    console.log("Available doctors:", availableDoctors.value);
-  } else {
-    availableDoctors.value = doctors;
-  }
-
-  if (blocks.length === 0) {
-    currentBlocks.value = await api.getBlocksMeta();
-    console.warn("Нет блоков для текущего врача");
-    console.log("Current blocks:", currentBlocks.value);
-  } else {
-    currentBlocks.value = blocks;
-  }
-  selectedDoctor.value = "Выберите врача";
-  console.log(selectedDate.value === currentDate);
-  selectedDate.value === currentDate
-    ? (isReadonly.value = true)
-    : (isReadonly.value = false);
-};
-
-watch(selectedDoctor, async (newSelectedDoctor) => {
-  console.log("Watch", newSelectedDoctor);
-  if (newSelectedDoctor === "") {
-    console.log("Доктор не выбран, пропускается");
-    return;
-  }
-
-  const blocksForDoctor = await api.getBlocksForDoctor(
-    selectedDate.value,
-    newSelectedDoctor
-  );
-  console.log("NEW currentBlocks", blocksForDoctor);
-
-  if (blocksForDoctor.length === 0) {
-    const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
-    console.log("NEW NEW currentBlocks", blocksDateMeta);
-
-    if (blocksDateMeta.length === 0) {
-      currentBlocks.value = await api.getBlocksMeta();
-    } else {
-      currentBlocks.value = blocksDateMeta;
-    }
-  } else {
-    currentBlocks.value = blocksForDoctor;
-  }
-});
-
-const isDoctorSelect = computed(() =>
-  availableDoctors.value
-    .map((value) => value.name)
-    .includes(selectedDoctor.value)
-);
-
 const restoreInitialState = async () => {
-  if (await confirm("Вы действительно хотите очистить форму?")) {
-    currentBlocks.value = await api.getBlocksDateMeta(selectedDate.value);
-    await api.setBlocksForDoctor(
-      selectedDate.value,
-      selectedDoctor.value,
-      deleteProxy(currentBlocks.value)
-    );
-    console.log("restoreInitialState");
+  if (await confirm('Вы действительно хотите очистить форму?')) {
+    const dateStr = selectedDate.value.toISOString().split('T')[0];
+    const blocks = await api.getBlocksDateMeta(dateStr);
+    currentBlocks.value = blocks.length === 0 ? await api.getBlocksMeta() : blocks;
+    await saveReport();
   }
 };
 
 const toCurrentDate = async () => {
-  selectedDate.value = currentDate;
+  selectedDate.value = new Date(currentDate);
   await loadMetaForSelectedDate();
 };
+
+const isDoctorSelected = computed(() => selectedDoctor.value !== null);
 </script>
 
 <template>
-  <div class="container">
-    <div class="line">
-      <div class="flex-row">
-        <label for="dateReport" class="dateReport"> Дата</label>
-        <input
-          @change="loadMetaForSelectedDate"
-          id="dateReport"
-          type="date"
-          v-model="selectedDate"
-          :max="currentDate"
-          lang="ru-RU"
-        />
-        <button @click="toCurrentDate">Перейти к сегодняшней дате</button>
-      </div>
+  <div class="report-editor">
+    <Toolbar class="toolbar">
+      <template #start>
+        <div class="toolbar-group">
+          <label for="dateSelect" class="label">Дата:</label>
+          <Calendar id="dateSelect" v-model="selectedDate" :max-date="new Date(currentDate)" date-format="yy-mm-dd"
+            @date-select="loadMetaForSelectedDate" />
+          <Button icon="pi pi-arrow-right" label="Сегодня" @click="toCurrentDate" severity="secondary" />
+        </div>
+      </template>
+      <template #end>
+        <div class="toolbar-group">
+          <Button icon="pi pi-save" label="Сохранить" @click="saveReport" :disabled="!isDoctorSelected" />
+          <Button icon="pi pi-refresh" label="Очистить" @click="restoreInitialState" severity="danger"
+            :disabled="!isDoctorSelected" />
+        </div>
+      </template>
+    </Toolbar>
 
-      <!-- <button @click="saveFile()" :disabled="saveButtonDisable">
-        Сохранить
-      </button> -->
-    </div>
-
-    <div class="line">
-      <div class="flex-row">
-        <label for="select" class=""> ФИО врача</label>
-        <select
-          id="select"
-          v-model="selectedDoctor"
-          :disabled="availableDoctors.length === 0"
-        >
-          <option selected disabled hidden>Выберите врача</option>
-
-          <option value="" v-if="availableDoctors.length === 0">
-            Нет данных за выбранную дату
-          </option>
-          <option
-            v-for="doctor in availableDoctors"
-            :value="doctor.name"
-            :key="doctor.name"
-          >
-            {{ doctor.name }}
-          </option>
-        </select>
-      </div>
-      <div class="flex-row">
-        <div class="block">
-          <label for="edit" class=""> Редактировать</label>
-          <input v-model="isReadonly" id="edit" type="checkbox" />
+    <Card class="doctor-selector">
+      <template #title>Выбор врача</template>
+      <div class="selector-content">
+        <div class="dropdown-wrapper">
+          <label for="doctorSelect" class="label">ФИО врача:</label>
+          <Dropdown id="doctorSelect" v-model="selectedDoctor" :options="availableDoctors" option-label="name"
+            placeholder="Выберите врача" class="w-full"
+            :empty-message="availableDoctors.length === 0 ? 'Нет врачей' : 'Врач не найден'" />
         </div>
 
-        <div class="block">
-          <label for="checkAll" class=""> Выбрать все</label>
-          <input
-            id="checkAll"
-            v-model="currentCheck"
-            @click="checkAllComplete()"
-            type="checkbox"
-          />
+        <div class="controls">
+          <div class="switch-group">
+            <label for="readonlySwitch">Редактировать:</label>
+            <InputSwitch id="readonlySwitch" v-model="isReadonly" :disabled="true" />
+          </div>
+
+          <div class="switch-group">
+            <label for="selectAllSwitch">Выбрать все:</label>
+            <InputSwitch id="selectAllSwitch" v-model="selectAllComplete" @change="checkAllComplete" />
+          </div>
         </div>
-        <button @click="restoreInitialState" class="btn btn-danger">
-          Очистить форму
-        </button>
+      </div>
+    </Card>
+
+    <div v-if="isDoctorSelected" class="report-table">
+      <template v-for="block in currentBlocks" :key="block.label">
+        <div class="block-header">
+          <h3>{{ block.label }}</h3>
+        </div>
+
+        <DataTable :value="block.tasks" responsive-layout="scroll" striped-rows class="block-table">
+          <Column field="number" header="№" style="width: 60px" />
+          <Column field="label" header="Наименование пункта проверки" />
+          <Column header="Сделано" style="width: 100px">
+            <template #body="slotProps">
+              <Checkbox v-model="slotProps.data.status.complete" :binary="true" :disabled="!isReadonly" @change="
+                slotProps.data.status.complete
+                  ? (slotProps.data.status.notComplete = false)
+                  : (slotProps.data.status.complete = true)
+                " />
+            </template>
+          </Column>
+          <Column header="Не сделано" style="width: 100px">
+            <template #body="slotProps">
+              <Checkbox v-model="slotProps.data.status.notComplete" :binary="true" :disabled="!isReadonly" @change="
+                slotProps.data.status.notComplete
+                  ? (slotProps.data.status.complete = false)
+                  : (slotProps.data.status.notComplete = true)
+                " />
+            </template>
+          </Column>
+          <Column header="Примечание">
+            <template #body="slotProps">
+              <InputTextarea v-model="slotProps.data.description" :readonly="!isReadonly" :auto-resize="true"
+                @change="saveReport" />
+            </template>
+          </Column>
+        </DataTable>
+      </template>
+
+      <div v-if="currentBlocks.length === 0" class="empty-state">
+        <p>Нет блоков задач для отображения</p>
       </div>
     </div>
 
-    <div>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col" rowspan="2">№</th>
-            <th scope="col" rowspan="2">Наименование пункта проверки</th>
-            <th scope="col" colspan="2">Оценка состояния</th>
-            <th scope="col" rowspan="2">Примечание</th>
-          </tr>
-          <tr>
-            <th scope="col">Сделано</th>
-            <th scope="col">Не сделано</th>
-          </tr>
-        </thead>
-
-        <tbody v-if="!isDoctorSelect">
-          <tr>
-            <th colspan="5">Выберите врача</th>
-          </tr>
-        </tbody>
-        <tbody v-else>
-          <template v-for="block in currentBlocks" :key="block.label">
-            <tr>
-              <th colspan="5">{{ block.label }}</th>
-            </tr>
-            <tr v-for="task in block.tasks" :key="task.label">
-              <th>{{ task.number }}</th>
-              <td>{{ task.label }}</td>
-              <th>
-                <input
-                  type="checkbox"
-                  v-model="task.status.complete"
-                  :disabled="!isReadonly"
-                  @click="saveReport"
-                  @change="
-                    task.status.complete
-                      ? (task.status.notComplete = false)
-                      : (task.status.complete = true)
-                  "
-                />
-              </th>
-              <th>
-                <input
-                  type="checkbox"
-                  v-model="task.status.notComplete"
-                  :disabled="!isReadonly"
-                  @click="saveReport"
-                  @change="
-                    task.status.notComplete
-                      ? (task.status.complete = false)
-                      : (task.status.notComplete = true)
-                  "
-                />
-              </th>
-              <th>
-                <textarea
-                  lang="ru-RU"
-                  v-model="task.description"
-                  :readonly="!isReadonly"
-                  inputmode="text"
-                  spellcheck="true"
-                  @change="saveReport"
-                  @keypress.enter="saveReport"
-                ></textarea>
-              </th>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+    <div v-else class="empty-state">
+      <p>Выберите врача для начала работы</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.flex-row {
+.report-editor {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.toolbar {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.toolbar-group {
   display: flex;
-  flex-direction: row;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
 }
-label[for="dateReport"] {
-  margin-right: 40px;
+
+.label {
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+:deep(.p-calendar) {
+  width: 180px;
+}
+
+.doctor-selector {
+  margin-bottom: 30px;
+}
+
+.selector-content {
+  display: flex;
+  gap: 30px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.dropdown-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 250px;
+}
+
+.controls {
+  display: flex;
+  gap: 30px;
+}
+
+.switch-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-table {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.block-header {
+  margin-top: 24px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.block-header h3 {
+  margin: 0;
+  color: var(--primary-color);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.block-table {
+  margin-bottom: 20px;
+}
+
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+  background: var(--surface-ground);
+  color: var(--text-color);
+  font-weight: 600;
+  padding: 12px 8px;
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+  padding: 12px 8px;
+  border-color: var(--border-color);
+}
+
+:deep(.p-inputtextarea) {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-color-secondary);
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .report-editor {
+    padding: 12px;
+  }
+
+  .selector-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .dropdown-wrapper {
+    min-width: auto;
+  }
+
+  .controls {
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .block-table {
+    font-size: 12px;
+  }
 }
 </style>

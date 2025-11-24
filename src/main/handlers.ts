@@ -1,222 +1,252 @@
-import { app, ipcMain } from "electron";
-import { Doctor, Block, Meta } from "../types";
-import { appStore } from "./store";
+// src/main/handlers.ts
+import { ipcMain } from 'electron';
+import { DatabaseService } from './db/service';
+import { Doctor, Block, Meta } from './types';
 
-/**
- * Регистрация всех IPC handlers с использованием appStore напрямую
- */
-export const registerHandlers = (): void => {
-  // Тестовый хендлер
-  ipcMain.handle("send-ping", async (event, arg) => {
-    console.log("Ping received:", arg);
-    return "pong";
-  });
-  // ==================== NEW API ====================
+export function registerHandlers(dbService: DatabaseService): void {
+  // ==================== DOCTORS ====================
 
-  // Получение мета-данных врачей
-  ipcMain.handle("get-doctors-meta", async (event): Promise<Doctor[]> => {
+  ipcMain.handle('get-doctors-meta', async (event): Promise<Doctor[]> => {
     try {
-      const doctors = await appStore.get("meta.doctors", []);
-      return doctors;
+      return dbService.getAllDoctors();
     } catch (error) {
-      console.error("Ошибка в get-doctors-meta:", error);
+      console.error('Ошибка в get-doctors-meta:', error);
       return [];
     }
   });
 
-  // Установка мета-данных врачей
   ipcMain.handle(
-    "set-doctors-meta",
+    'set-doctors-meta',
     async (event, doctors: Doctor[]): Promise<Doctor[]> => {
       try {
-        await appStore.set("meta.doctors", doctors);
-        return doctors;
+        doctors.forEach(doctor => {
+          const existing = dbService.getAllDoctors().find(d => d.name === doctor.name);
+          if (!existing) {
+            dbService.addDoctor(doctor.name);
+          }
+        });
+        return dbService.getAllDoctors();
       } catch (error) {
-        console.error("Ошибка в set-doctors-meta:", error);
+        console.error('Ошибка в set-doctors-meta:', error);
         throw error;
       }
     }
   );
 
-  // Получение мета-данных блоков
-  ipcMain.handle("get-blocks-meta", async (event): Promise<Block[]> => {
+  ipcMain.handle(
+    'add-doctor',
+    async (event, name: string): Promise<Doctor[]> => {
+      try {
+        dbService.addDoctor(name);
+        return dbService.getAllDoctors();
+      } catch (error) {
+        console.error('Ошибка в add-doctor:', error);
+        throw error;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'remove-doctor',
+    async (event, id: number): Promise<void> => {
+      try {
+        dbService.deactivateDoctor(id);
+      } catch (error) {
+        console.error('Ошибка в remove-doctor:', error);
+        throw error;
+      }
+    }
+  );
+
+  // ==================== BLOCKS ====================
+
+  ipcMain.handle('get-blocks-meta', async (event): Promise<Block[]> => {
     try {
-      const blocks = await appStore.get("meta.blocks", []);
-      return blocks;
+      const date = new Date().toISOString().split('T')[0];
+      return dbService.getBlocksByDate(date);
     } catch (error) {
-      console.error("Ошибка в get-blocks-meta:", error);
+      console.error('Ошибка в get-blocks-meta:', error);
       return [];
     }
   });
 
-  // Установка мета-данных блоков
   ipcMain.handle(
-    "set-blocks-meta",
+    'set-blocks-meta',
     async (event, blocks: Block[]): Promise<Block[]> => {
       try {
-        await appStore.set("meta.blocks", blocks);
-        return blocks;
+        const date = new Date().toISOString().split('T')[0];
+        blocks.forEach((block, index) => {
+          dbService.addBlock(block.label, index, date);
+          block.tasks.forEach(task => {
+            const blockId = (blocks as any)[index]._id;
+            dbService.addTask(blockId, task.number, task.label, date);
+          });
+        });
+        return dbService.getBlocksByDate(date);
       } catch (error) {
-        console.error("Ошибка в set-blocks-meta:", error);
+        console.error('Ошибка в set-blocks-meta:', error);
         throw error;
       }
     }
   );
 
-  // Получение врачей для конкретной даты
   ipcMain.handle(
-    "get-doctors-date-meta",
-    async (event, date: string): Promise<Doctor[]> => {
+    'add-block',
+    async (event, label: string): Promise<Block[]> => {
       try {
-        const doctors = await appStore.get(`days.${date}.meta.doctors`, []);
-        return doctors;
+        const date = new Date().toISOString().split('T')[0];
+        const blocks = dbService.getBlocksByDate(date);
+        dbService.addBlock(label, blocks.length, date);
+        return dbService.getBlocksByDate(date);
       } catch (error) {
-        console.error("Ошибка в get-doctors-date-meta:", error);
-        return [];
-      }
-    }
-  );
-
-  // Установка врачей для конкретной даты (создание пустых состояний)
-  ipcMain.handle(
-    "set-doctors-date-meta",
-    async (event, date: string, doctors: Doctor[]): Promise<{}> => {
-      try {
-        await appStore.set(`days.${date}.meta.doctors`, doctors);
-        return { status: "success" };
-      } catch (error) {
-        console.error("Ошибка в set-doctors-date-meta:", error);
+        console.error('Ошибка в add-block:', error);
         throw error;
       }
     }
   );
 
-  // Получение блоков для конкретной даты
   ipcMain.handle(
-    "get-blocks-date-meta",
-    async (event, date: string): Promise<Block[]> => {
+    'remove-block',
+    async (event, id: number): Promise<void> => {
       try {
-        const blocks = await appStore.get(`days.${date}.meta.blocks`, []);
-        return blocks;
+        dbService.deactivateBlock(id);
       } catch (error) {
-        console.error("Ошибка в get-blocks-date-meta:", error);
-        return [];
+        console.error('Ошибка в remove-block:', error);
+        throw error;
       }
     }
   );
 
-  // Установка блоков для конкретной даты (обновляет у всех врачей)
   ipcMain.handle(
-    "set-blocks-date-meta",
-    async (event, date: string, blocks: Block[]): Promise<{}> => {
+    'add-task',
+    async (event, blockId: number, label: string): Promise<void> => {
       try {
-        await appStore.set(`days.${date}.meta.blocks`, blocks);
-
-        return { status: "success" };
+        const date = new Date().toISOString().split('T')[0];
+        const blocks = dbService.getBlocksByDate(date);
+        const block = blocks.find(b => (b as any).id === blockId);
+        const nextNumber = block?.tasks.length ? Math.max(...block.tasks.map(t => t.number)) + 1 : 1;
+        dbService.addTask(blockId, nextNumber, label, date);
       } catch (error) {
-        console.error("Ошибка в set-blocks-date-meta:", error);
-        return { status: "error", message: error };
+        console.error('Ошибка в add-task:', error);
+        throw error;
       }
     }
   );
 
-  // Получение блоков для конкретного врача
   ipcMain.handle(
-    "get-blocks-for-doctor",
-    async (event, date: string, doctorName: string): Promise<Block[]> => {
+    'remove-task',
+    async (event, id: number): Promise<void> => {
       try {
-        const blocks = await appStore.get(
-          `days.${date}.${doctorName}.blocks`,
-          []
+        dbService.deactivateTask(id);
+      } catch (error) {
+        console.error('Ошибка в remove-task:', error);
+        throw error;
+      }
+    }
+  );
+
+  // ==================== REPORTS ====================
+
+  ipcMain.handle(
+    'get-report',
+    async (event, date: string, doctorId: number): Promise<any> => {
+      try {
+        return dbService.getReportWithTasks(date, doctorId);
+      } catch (error) {
+        console.error('Ошибка в get-report:', error);
+        return null;
+      }
+    }
+  );
+
+  ipcMain.handle(
+    'save-report',
+    async (event, date: string, doctorId: number, blocks: Block[]): Promise<void> => {
+      try {
+        const reportId = dbService.getOrCreateReport(date, doctorId);
+        const allTasks = blocks.flatMap(block =>
+          block.tasks.map(task => ({
+            id: (task as any).id,
+            status: task.status,
+            description: task.description
+          }))
         );
-        return blocks;
+        dbService.saveReportTasks(reportId, allTasks);
       } catch (error) {
-        console.error("Ошибка в get-blocks-for-doctor:", error);
-        return [];
-      }
-    }
-  );
-
-  // Установка блоков для конкретного врача
-  ipcMain.handle(
-    "set-blocks-for-doctor",
-    async (
-      event,
-      date: string,
-      doctorName: string,
-      blocks: Block[]
-    ): Promise<Block[]> => {
-      try {
-        await appStore.set(`days.${date}.${doctorName}.blocks`, blocks);
-        return blocks;
-      } catch (error) {
-        console.error("Ошибка в set-blocks-for-doctor:", error);
+        console.error('Ошибка в save-report:', error);
         throw error;
       }
     }
   );
 
-  // Получение всех мета-данных
-  ipcMain.handle("get-meta", async (event): Promise<Meta> => {
+  // ==================== META ====================
+
+  ipcMain.handle('get-meta', async (event): Promise<Meta> => {
     try {
-      const meta = await appStore.get("meta", { doctors: [], blocks: [] });
-      return meta;
+      const date = new Date().toISOString().split('T')[0];
+      return dbService.getMeta(date);
     } catch (error) {
-      console.error("Ошибка в get-meta:", error);
+      console.error('Ошибка в get-meta:', error);
       return { doctors: [], blocks: [] };
     }
   });
 
-  // Установка всех мета-данных
-  ipcMain.handle("set-meta", async (event, meta: Meta): Promise<{}> => {
+  ipcMain.handle('set-meta', async (event, meta: Meta): Promise<void> => {
     try {
-      await appStore.set("meta", meta);
-      return { status: "success" };
+      const date = new Date().toISOString().split('T')[0];
+      dbService.setMeta(meta, date);
     } catch (error) {
-      console.error("Ошибка в set-meta:", error);
+      console.error('Ошибка в set-meta:', error);
       throw error;
     }
   });
 
-  // Печать отчета (заглушка)
   ipcMain.handle(
-    "print-report",
-    async (event, date: string, doctors: Doctor[]): Promise<void> => {
+    'get-doctors-date-meta',
+    async (event, date: string): Promise<Doctor[]> => {
       try {
-        console.log(`Печать отчета для даты: ${date}, врачи:`, doctors);
-        // Здесь будет логика печати отчета
+        return dbService.getDoctorsByDate(date);
       } catch (error) {
-        console.error("Ошибка в print-report:", error);
-        throw error;
+        console.error('Ошибка в get-doctors-date-meta:', error);
+        return [];
       }
     }
   );
 
-  // Получение текущей даты
-  ipcMain.handle("get-current-date", async (event): Promise<string> => {
+  ipcMain.handle(
+    'get-blocks-date-meta',
+    async (event, date: string): Promise<Block[]> => {
+      try {
+        return dbService.getBlocksByDate(date);
+      } catch (error) {
+        console.error('Ошибка в get-blocks-date-meta:', error);
+        return [];
+      }
+    }
+  );
+
+  // ==================== CONFIG ====================
+
+  ipcMain.handle('get-title', async (event): Promise<string> => {
     try {
-      return new Date().toISOString().split("T")[0];
+      return dbService.getConfig('title', 'Подразделение');
     } catch (error) {
-      console.error("Ошибка в get-current-date:", error);
+      console.error('Ошибка в get-title:', error);
+      return 'Подразделение';
+    }
+  });
+
+  ipcMain.handle('set-title', async (event, title: string): Promise<string> => {
+    try {
+      dbService.setConfig('title', title);
+      return title;
+    } catch (error) {
+      console.error('Ошибка в set-title:', error);
       throw error;
     }
   });
 
-  ipcMain.handle("clear-store", async (event) => {
-    try {
-      await appStore.clear();
-    } catch (error) {}
+  ipcMain.handle('get-current-date', async (event): Promise<string> => {
+    return new Date().toISOString().split('T')[0];
   });
-  ipcMain.handle("get-title", async (event) => {
-    try {
-      console.log("APPSTORE", await appStore.has("title"));
-      return await appStore.get("title", "");
-    } catch (error) {}
-  });
-  ipcMain.handle("set-title", async (event, title) => {
-    try {
-      await appStore.set("title", title);
-      return title;
-    } catch (error) {}
-  });
-};
+}

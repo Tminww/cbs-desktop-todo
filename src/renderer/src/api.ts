@@ -1,170 +1,90 @@
-// Обертка для безопасного вызова API с обработкой ошибок
+// src/renderer/src/api.ts
 export const api = {
-  /**
-   * Получить метаданные всех врачей
-   */
+  // ==================== DOCTORS ====================
+  
   getDoctorsMeta: async (): Promise<Doctor[]> => {
     return await window.backend.getDoctorsMeta();
   },
 
-  /**
-   * Сохранить метаданные всех врачей
-   * @param doctors - массив врачей
-   */
-  setDoctorsMeta: async (doctors: Doctor[]): Promise<void> => {
+  setDoctorsMeta: async (doctors: Doctor[]): Promise<Doctor[]> => {
     return await window.backend.setDoctorsMeta(doctors);
   },
 
-  /**
-   * Получить метаданные всех блоков (например, временных слотов)
-   */
+  addDoctor: async (name: string): Promise<Doctor[]> => {
+    return await window.backend.addDoctor(name);
+  },
+
+  removeDoctor: async (id: number): Promise<void> => {
+    return await window.backend.removeDoctor(id);
+  },
+
+  // ==================== BLOCKS ====================
+
   getBlocksMeta: async (): Promise<Block[]> => {
     return await window.backend.getBlocksMeta();
   },
 
-  /**
-   * Сохранить метаданные всех блоков
-   * @param blocks - массив блоков
-   */
-  setBlocksMeta: async (blocks: Block[]): Promise<void> => {
+  setBlocksMeta: async (blocks: Block[]): Promise<Block[]> => {
     return await window.backend.setBlocksMeta(blocks);
   },
 
-  /**
-   * Получить метаданные врачей на определённую дату
-   * @param date - строка даты в формате YYYY-MM-DD
-   */
-  getDoctorsDateMeta: async (date: string): Promise<Doctor[]> => {
-    return await window.backend.getDoctorsDateMeta(date);
+  addBlock: async (label: string): Promise<Block[]> => {
+    return await window.backend.addBlock(label);
   },
 
-  /**
-   * Сохранить метаданные врачей на определённую дату
-   * @param date - строка даты
-   * @param doctors - массив врачей
-   */
-  setDoctorsDateMeta: async (
-    date: string,
-    doctors: Doctor[]
-  ): Promise<void> => {
-    return await window.backend.setDoctorsDateMeta(date, doctors);
+  removeBlock: async (id: number): Promise<void> => {
+    return await window.backend.removeBlock(id);
   },
 
-  /**
-   * Получить метаданные блоков на определённую дату
-   * @param date - строка даты
-   */
-  getBlocksDateMeta: async (date: string): Promise<Block[]> => {
-    return await window.backend.getBlocksDateMeta(date);
+  // ==================== TASKS ====================
+
+  addTask: async (blockId: number, label: string): Promise<void> => {
+    return await window.backend.addTask(blockId, label);
   },
 
-  /**
-   * Сохранить метаданные блоков на определённую дату
-   * @param date - строка даты
-   * @param blocks - массив блоков
-   */
-  setBlocksDateMeta: async (date: string, blocks: Block[]): Promise<void> => {
-    return await window.backend.setBlocksDateMeta(date, blocks);
+  removeTask: async (id: number): Promise<void> => {
+    return await window.backend.removeTask(id);
   },
 
-  /**
-   * Получить блоки для конкретного врача на определённую дату
-   * @param date - строка даты
-   * @param doctorName - имя врача
-   */
-  getBlocksForDoctor: async (
-    date: string,
-    doctorName: string
-  ): Promise<Block[]> => {
-    return await window.backend.getBlocksForDoctor(date, doctorName);
+  // ==================== REPORTS ====================
+
+  getReport: async (date: string, doctorId: number): Promise<any> => {
+    return await window.backend.getReport(date, doctorId);
   },
 
-  /**
-   * Сохранить блоки для конкретного врача на определённую дату
-   * @param date - строка даты
-   * @param doctorName - имя врача
-   * @param blocks - массив блоков
-   */
-  setBlocksForDoctor: async (
-    date: string,
-    doctorName: string,
-    blocks: Block[]
-  ): Promise<void> => {
-    return await window.backend.setBlocksForDoctor(date, doctorName, blocks);
+  saveReport: async (date: string, doctorId: number, blocks: Block[]): Promise<void> => {
+    return await window.backend.saveReport(date, doctorId, blocks);
   },
 
-  /**
-   * Получить общие метаданные приложения
-   */
+  // ==================== META & CONFIG ====================
+
   getMeta: async (): Promise<Meta> => {
     return await window.backend.getMeta();
   },
 
-  getDateMeta: async (date: string): Promise<Meta> => {
-    const meta = {
-      blocks: await window.backend.getBlocksDateMeta(date),
-      doctors: await window.backend.getDoctorsDateMeta(date),
-    };
-    return meta;
-  },
-
-  /**
-   * Сохранить общие метаданные приложения
-   * @param meta - объект метаданных
-   */
-  setMeta: async (meta: Meta): Promise<Status> => {
+  setMeta: async (meta: Meta): Promise<void> => {
     return await window.backend.setMeta(meta);
   },
 
-  setDateMeta: async (date: string, meta: Meta): Promise<Status> => {
-    const blocksResponse = await window.backend.setBlocksDateMeta(
-      date,
-      meta.blocks
-    );
-    const doctorsResponse = await window.backend.setDoctorsDateMeta(
-      date,
-      meta.doctors
-    );
-    console.log(blocksResponse.status, doctorsResponse.status);
-    if (
-      blocksResponse.status === "success" &&
-      doctorsResponse.status === "success"
-    ) {
-      return { status: "success" };
-    } else {
-      return {
-        status: "error",
-        message: `${blocksResponse?.message} / ${doctorsResponse?.message}`,
-      };
-    }
+  getDoctorsDateMeta: async (date: string): Promise<Doctor[]> => {
+    return await window.backend.getDoctorsDateMeta(date);
   },
 
-  /**
-   * Печать отчёта на указанную дату для списка врачей
-   * @param date - строка даты
-   * @param doctors - массив врачей
-   */
-  printReport: async (date: string, doctors: Doctor[]): Promise<void> => {
-    return await window.backend.printReport(date, doctors);
+  getBlocksDateMeta: async (date: string): Promise<Block[]> => {
+    return await window.backend.getBlocksDateMeta(date);
   },
 
-  /**
-   * Получить текущую дату (с бэкенда)
-   */
-  getCurrentDate: async (): Promise<string> => {
-    return await window.backend.getCurrentDate();
-  },
-
-  clearStore: async () => {
-    await window.backend.clearStore();
-  },
-
-  getTitle: async () => {
+  getTitle: async (): Promise<string> => {
     return await window.backend.getTitle();
   },
-  setTitle: async (title: string) => {
+
+  setTitle: async (title: string): Promise<string> => {
     return await window.backend.setTitle(title);
   },
+
+  getCurrentDate: async (): Promise<string> => {
+    return await window.backend.getCurrentDate();
+  }
 };
 
 export default api;

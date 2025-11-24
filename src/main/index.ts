@@ -1,11 +1,20 @@
-import { app, BrowserWindow } from "electron";
-import { createWindow } from "./window";
-import { setupSecurityHeaders } from "./security";
-import { registerHandlers } from "./handlers";
+// src/main/index.ts
+import { app, BrowserWindow } from 'electron';
+import { createWindow } from './window';
+import { setupSecurityHeaders } from './security';
+import { registerHandlers } from './handlers';
+import { initializeDatabase } from './db/schema';
+import { DatabaseService } from './db/service';
 
-console.log("App path:", __dirname);
+let dbService: DatabaseService;
+
+console.log('App path:', __dirname);
 
 app.whenReady().then(async () => {
+  // Инициализируем БД
+  const db = initializeDatabase();
+  dbService = new DatabaseService(db);
+
   // Создаем окно
   createWindow();
 
@@ -13,17 +22,24 @@ app.whenReady().then(async () => {
   setupSecurityHeaders();
 
   // Регистрируем IPC api
-  registerHandlers();
+  registerHandlers(dbService);
 
-  app.on("activate", function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
+  app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
 
-app.on("window-all-closed", function () {
-  if (process.platform !== "darwin") app.quit();
+app.on('window-all-closed', function () {
+  if (dbService) {
+    dbService.close();
+  }
+  if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  if (dbService) {
+    dbService.close();
+  }
 });

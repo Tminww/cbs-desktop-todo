@@ -1,49 +1,47 @@
-/**
- * Should match main/preload.ts for typescript support in renderer
- */
+// src/renderer/src/typings/electron.d.ts
 export default interface Backend {
-  setTitle(title: string): Promise<string>;
+  // Doctors
+  getDoctorsMeta(): Promise<Doctor[]>;
+  setDoctorsMeta(doctors: Doctor[]): Promise<Doctor[]>;
+  addDoctor(name: string): Promise<Doctor[]>;
+  removeDoctor(id: number): Promise<void>;
+
+  // Blocks
+  getBlocksMeta(): Promise<Block[]>;
+  setBlocksMeta(blocks: Block[]): Promise<Block[]>;
+  addBlock(label: string): Promise<Block[]>;
+  removeBlock(id: number): Promise<void>;
+
+  // Tasks
+  addTask(blockId: number, label: string): Promise<void>;
+  removeTask(id: number): Promise<void>;
+
+  // Reports
+  getReport(date: string, doctorId: number): Promise<any>;
+  saveReport(date: string, doctorId: number, blocks: Block[]): Promise<void>;
+
+  // Meta & Config
+  getMeta(): Promise<Meta>;
+  setMeta(meta: Meta): Promise<void>;
+  getDoctorsDateMeta(date: string): Promise<Doctor[]>;
+  getBlocksDateMeta(date: string): Promise<Block[]>;
   getTitle(): Promise<string>;
-  clearStore(): unknown;
-  getCurrentDate(): string | PromiseLike<string>;
-  printReport(date: string, doctors: Doctor[]): void | PromiseLike<void>;
-  setMeta(meta: Meta): Status | PromiseLike<Status>;
-  getMeta(): Meta | PromiseLike<Meta>;
-  setBlocksForDoctor(
-    date: string,
-    doctorName: string,
-    blocks: Block[]
-  ): void | PromiseLike<void>;
-  getBlocksForDoctor(
-    date: string,
-    doctorName: string
-  ): Block[] | PromiseLike<Block[]>;
-  setBlocksDateMeta(
-    date: string,
-    blocks: Block[]
-  ): Status | PromiseLike<Status>;
-  getBlocksDateMeta(date: string): Block[] | PromiseLike<Block[]>;
-  setDoctorsDateMeta(
-    date: string,
-    doctors: Doctor[]
-  ): Status | PromiseLike<Status>;
-  setBlocksMeta(blocks: Block[]): void | PromiseLike<void>;
-  getBlocksMeta(): Block[] | PromiseLike<Block[]>;
-  setDoctorsMeta(doctors: Doctor[]): void | PromiseLike<void>;
-  getDoctorsMeta(): Doctor[] | PromiseLike<Doctor[]>;
-  getDoctorsDateMeta(date: string): Doctor[] | PromiseLike<Doctor[]>;
-  sendMessage: (message: string) => void;
+  setTitle(title: string): Promise<string>;
+  getCurrentDate(): Promise<string>;
 }
 
 declare global {
   interface Window {
     backend: Backend;
   }
+
   interface Doctor {
+    id?: number;
     name: string;
   }
 
   interface Task {
+    id?: number;
     number: number;
     label: string;
     status: {
@@ -54,26 +52,13 @@ declare global {
   }
 
   interface Block {
+    id?: number;
     label: string;
     tasks: Task[];
   }
+
   interface Meta {
     blocks: Block[];
     doctors: Doctor[];
-  }
-  interface Store {
-    days?: {
-      [date: string]: {
-        meta: Meta;
-        [doctor: string]: {
-          blocks: Block[];
-        };
-      };
-    };
-    meta: Meta;
-  }
-  interface Status {
-    status: "error" | "success";
-    message?: string;
   }
 }

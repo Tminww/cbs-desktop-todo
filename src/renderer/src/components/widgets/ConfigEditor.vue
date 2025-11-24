@@ -1,752 +1,444 @@
+<!-- src/renderer/src/components/widgets/ConfigEditor.vue -->
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from "vue";
-import { api } from "@renderer/api";
-import { deleteProxy } from "@renderer/utils";
-import { useConfirm } from "@renderer/composables/useConfirm";
-import { toast } from "vue-sonner";
+import { ref, onMounted } from 'vue';
+import { api } from '@renderer/api';
+import { deleteProxy } from '@renderer/utils';
+import { useConfirm } from '@renderer/composables/useConfirm';
+import { toast } from 'vue-sonner';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import Card from 'primevue/card';
+import Toolbar from 'primevue/toolbar';
+import Dialog from 'primevue/dialog';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import InputGroup from 'primevue/inputgroup';
+
 const emit = defineEmits<{
   updateTitle: [newTitle: string];
 }>();
-// Реактивные данные
-const config = ref<Meta>({
-  doctors: [],
-  blocks: [],
-});
 
 const { confirm } = useConfirm();
 
-const title = ref("");
-
-const editSelectedDate = ref(false);
-
-const actionStatus = ref<{ message: string; status: string } | null>(null);
-const isLoading = ref(false);
-const editingDoctor = ref(-1);
-const editingBlock = ref(-1);
-const editingTask = ref(-1);
-
-const selectedDate = ref();
-let currentDate = new Date().toISOString().split("T")[0];
-
-// Новые элементы для добавления
-const newDoctor = ref("");
-const newBlockLabel = ref("");
-const newTaskLabel = ref("");
-
-// Статус цвет
-const statusColor = computed(() => {
-  if (!actionStatus.value) return "transparent";
-  return actionStatus.value.status === "error" ? "lightred" : "lightgreen";
+const config = ref<Meta>({
+  doctors: [],
+  blocks: []
 });
+
+const title = ref('');
+const isLoading = ref(false);
+
+const showAddDoctor = ref(false);
+const showAddBlock = ref(false);
+const showAddTask = ref(false);
+
+const newDoctorName = ref('');
+const newBlockLabel = ref('');
+const newTaskLabel = ref('');
+const selectedBlockForTask = ref<number | null>(null);
 
 onMounted(async () => {
   await loadConfig();
   title.value = await api.getTitle();
-  console.log("TITLE", title.value);
-  currentDate = await api.getCurrentDate();
-  selectedDate.value = currentDate;
 });
 
-// Загрузка конфигурации
-const loadConfig = async (): Promise<void> => {
+const loadConfig = async () => {
   isLoading.value = true;
   try {
     config.value = await api.getMeta();
-    // showToast(`Конфигурация загружена: ${config.value.blocks}`, "success");
-    console.log(config.value.blocks);
   } catch (error) {
-    console.error("Ошибка загрузки конфигурации:", error);
-    toast.error("Ошибка загрузки конфигурации");
+    console.error('Ошибка загрузки конфигурации:', error);
+    toast.error('Ошибка загрузки конфигурации');
   } finally {
     isLoading.value = false;
   }
 };
 
-// Сохранение конфигурации
-const saveConfig = async (): Promise<void> => {
-  if (!validateConfig()) {
-    toast.error("Конфигурация содержит ошибки");
-    return;
-  }
-
+const saveConfig = async () => {
   isLoading.value = true;
   try {
-    // 1. Сохраняем заголовок
     await api.setTitle(title.value);
-    emit("updateTitle", title.value);
+    emit('updateTitle', title.value);
 
     const configToSave = deleteProxy(config.value);
-
-    // 2. Сохраняем глобально
     await api.setMeta(configToSave);
 
-    // 3. Сохраняем для текущей даты
-    await api.setDateMeta(currentDate, configToSave);
-
-    // 4. Если редактируем конкретную дату (и это не сегодня), 
-    //    сохраняем и для неё
-    if (editSelectedDate.value && selectedDate.value !== currentDate) {
-      await api.setDateMeta(selectedDate.value, configToSave);
-    }
-
-    toast.success("Конфигурация сохранена");
+    toast.success('Конфигурация сохранена');
   } catch (error) {
-    console.error("Ошибка сохранения конфигурации:", error);
-    toast.error("Ошибка сохранения конфигурации");
+    console.error('Ошибка сохранения:', error);
+    toast.error('Ошибка сохранения конфигурации');
   } finally {
     isLoading.value = false;
   }
 };
 
-// Валидация конфигурации
-const validateConfig = (): boolean => {
-  // Проверяем, что все врачи имеют имена
-  if (config.value.doctors.some((doctor) => !doctor.name.trim())) {
-    return false;
-  }
-
-  // Проверяем блоки и задачи
-  for (const block of config.value.blocks) {
-    if (!block.label.trim()) {
-      return false;
-    }
-
-    if (block.tasks.length === 0) {
-      return false;
-    }
-
-    for (const task of block.tasks) {
-      if (!task.label.trim() || typeof task.number !== "number") {
-        return false;
-      }
-    }
-  }
-
-  return true;
-};
-
-// Управление врачами
-const addDoctor = (): void => {
-  if (!newDoctor.value.trim()) {
-    toast.error("Введите имя врача");
+const addDoctor = async () => {
+  if (!newDoctorName.value.trim()) {
+    toast.error('Введите имя врача');
     return;
   }
 
-  if (
-    config.value.doctors.some(
-      (doctor) => doctor.name === newDoctor.value.trim()
-    )
-  ) {
-    toast.error("Врач с таким именем уже существует");
+  if (config.value.doctors.some(d => d.name === newDoctorName.value.trim())) {
+    toast.error('Врач с таким именем уже существует');
     return;
   }
 
-  config.value.doctors.push({ name: newDoctor.value.trim() });
-  newDoctor.value = "";
-  toast.success("Врач добавлен. ");
+  config.value.doctors.push({ name: newDoctorName.value.trim() });
+  newDoctorName.value = '';
+  showAddDoctor.value = false;
+  toast.success('Врач добавлен');
 };
 
 const removeDoctor = async (index: number) => {
-  if (await confirm("Вы уверены, что хотите удалить этого врача?")) {
+  if (await confirm('Удалить этого врача?')) {
     config.value.doctors.splice(index, 1);
-    toast.success("Врач удален. ");
+    toast.success('Врач удален');
   }
 };
 
-const stopEditingDoctor = (): void => {
-  editingDoctor.value = -1;
-};
-
-// Управление блоками
-const addBlock = (): void => {
+const addBlock = async () => {
   if (!newBlockLabel.value.trim()) {
-    toast.error("Введите название блока");
+    toast.error('Введите название блока');
     return;
   }
 
-  const newBlock: Block = {
+  config.value.blocks.push({
     label: newBlockLabel.value.trim(),
-    tasks: [],
-  };
-
-  config.value.blocks.push(newBlock);
-  newBlockLabel.value = "";
-  toast.success("Блок добавлен. ");
+    tasks: []
+  });
+  newBlockLabel.value = '';
+  showAddBlock.value = false;
+  toast.success('Блок добавлен');
 };
 
 const removeBlock = async (index: number) => {
-  if (
-    await confirm("Вы уверены, что хотите удалить этот блок и все его задачи?")
-  ) {
+  if (await confirm('Удалить блок и все его задачи?')) {
     config.value.blocks.splice(index, 1);
-    toast.success("Блок удален. ");
+    toast.success('Блок удален');
   }
 };
 
-const moveBlockUp = (index: number): void => {
+const moveBlockUp = (index: number) => {
   if (index > 0) {
     const block = config.value.blocks.splice(index, 1)[0];
     config.value.blocks.splice(index - 1, 0, block);
   }
 };
 
-const moveBlockDown = (index: number): void => {
+const moveBlockDown = (index: number) => {
   if (index < config.value.blocks.length - 1) {
     const block = config.value.blocks.splice(index, 1)[0];
     config.value.blocks.splice(index + 1, 0, block);
   }
 };
 
-const stopEditingBlock = (): void => {
-  editingBlock.value = -1;
-};
-
-// Управление задачами
-const addTask = (blockIndex: number): void => {
+const addTask = async (blockIndex: number) => {
   if (!newTaskLabel.value.trim()) {
-    toast.error("Введите описание задачи");
+    toast.error('Введите описание задачи');
     return;
   }
 
   const block = config.value.blocks[blockIndex];
-  const nextNumber =
-    block.tasks.length > 0
-      ? Math.max(...block.tasks.map((t) => t.number)) + 1
-      : 1;
+  const nextNumber = block.tasks.length > 0
+    ? Math.max(...block.tasks.map(t => t.number)) + 1
+    : 1;
 
-  const newTask: Task = {
+  block.tasks.push({
     number: nextNumber,
     label: newTaskLabel.value.trim(),
     status: { complete: false, notComplete: false },
-    description: "",
-  };
+    description: ''
+  });
 
-  block.tasks.push(newTask);
-  newTaskLabel.value = "";
-  toast.success("Задача добавлена. ");
+  newTaskLabel.value = '';
+  showAddTask.value = false;
+  selectedBlockForTask.value = null;
+  toast.success('Задача добавлена');
 };
 
 const removeTask = async (blockIndex: number, taskIndex: number) => {
-  if (await confirm("Вы уверены, что хотите удалить эту задачу?")) {
+  if (await confirm('Удалить эту задачу?')) {
     config.value.blocks[blockIndex].tasks.splice(taskIndex, 1);
-
-    // Перенумеруем оставшиеся задачи
     config.value.blocks[blockIndex].tasks.forEach((task, index) => {
       task.number = index + 1;
     });
-
-    toast.success("Задача удалена. ");
+    toast.success('Задача удалена');
   }
 };
 
-const moveTaskUp = (blockIndex: number, taskIndex: number): void => {
+const moveTaskUp = (blockIndex: number, taskIndex: number) => {
+  const block = config.value.blocks[blockIndex];
   if (taskIndex > 0) {
-    const block = config.value.blocks[blockIndex];
     const task = block.tasks.splice(taskIndex, 1)[0];
     block.tasks.splice(taskIndex - 1, 0, task);
-
-    // Перенумеруем задачи
-    block.tasks.forEach((task, index) => {
-      task.number = index + 1;
+    block.tasks.forEach((t, index) => {
+      t.number = index + 1;
     });
   }
 };
 
-const moveTaskDown = (blockIndex: number, taskIndex: number): void => {
+const moveTaskDown = (blockIndex: number, taskIndex: number) => {
   const block = config.value.blocks[blockIndex];
   if (taskIndex < block.tasks.length - 1) {
     const task = block.tasks.splice(taskIndex, 1)[0];
     block.tasks.splice(taskIndex + 1, 0, task);
-
-    // Перенумеруем задачи
-    block.tasks.forEach((task, index) => {
-      task.number = index + 1;
+    block.tasks.forEach((t, index) => {
+      t.number = index + 1;
     });
   }
-};
-
-const stopEditingTask = (): void => {
-  editingTask.value = -1;
-};
-
-// Утилиты
-
-watch(editSelectedDate, async (newEditSelectedDate) => {
-  if (newEditSelectedDate) {
-    config.value = await api.getDateMeta(selectedDate.value);
-    console.log("СРАБОТАЛ WATCH на флажок редактирования даты");
-  } else {
-    await loadConfig();
-  }
-});
-
-const loadConfigForSelectedDate = async () => {
-  console.log("Новая дата", selectedDate.value);
-  const blocksDateMeta = await api.getBlocksDateMeta(selectedDate.value);
-  const doctorsDateMeta = await api.getDoctorsDateMeta(selectedDate.value);
-  config.value = { blocks: blocksDateMeta, doctors: doctorsDateMeta };
-};
-
-const deleteConfig = async () => {
-  if (
-    await confirm(
-      "Вы уверены, что хотите удалить все данные по врачам, задачам и заполненным отчетам?"
-    )
-  ) {
-    await api.clearStore();
-    config.value = await api.getMeta();
-  }
-};
-
-const toCurrentDate = async () => {
-  selectedDate.value = currentDate;
-  await loadConfigForSelectedDate();
 };
 </script>
 
 <template>
   <div class="config-editor">
-    <div class="line">
-      <div class="flex-row">
-        <label for="dateConfig" class="dateReport"> Дата</label>
-        <input
-          id="dateConfig"
-          type="date"
-          :disabled="!editSelectedDate"
-          v-model="selectedDate"
-          :max="currentDate"
-          lang="ru-RU"
-          @change="loadConfigForSelectedDate"
-        />
-        <button @click="toCurrentDate" :disabled="!editSelectedDate">
-          Перейти к сегодняшней дате
-        </button>
-        <div class="block">
-          <label for="global" class=""> Редактировать конкретную дату</label>
-          <input v-model="editSelectedDate" id="global" type="checkbox" />
-        </div>
-      </div>
-      <div class="flex-row">
-        <button @click="deleteConfig" class="btn btn-danger">
-          Удалить все
-        </button>
-        <button
-          @click="saveConfig"
-          class="btn btn-primary"
-          :disabled="isLoading"
-        >
-          Сохранить
-        </button>
+    <Toolbar class="toolbar">
+      <template #start>
+        <h2>Редактор конфигурации</h2>
+      </template>
+      <template #end>
+        <Button icon="pi pi-save" label="Сохранить" @click="saveConfig" :loading="isLoading" />
+      </template>
+    </Toolbar>
+
+    <!-- Название подразделения -->
+    <Card class="config-section">
+      <template #title>Подразделение</template>
+      <InputGroup>
+        <InputText v-model="title" placeholder="Введите название подразделения" />
+      </InputGroup>
+    </Card>
+
+    <!-- Врачи -->
+    <Card class="config-section">
+      <template #title>Управление врачами</template>
+      <template #subtitle>{{ config.doctors.length }} врачей</template>
+
+      <div class="section-controls">
+        <Button icon="pi pi-plus" label="Добавить врача" @click="showAddDoctor = true" severity="success" />
       </div>
 
-      <!-- <button @click="saveFile()" :disabled="saveButtonDisable">
-        Сохранить
-      </button> -->
-    </div>
+      <DataTable v-if="config.doctors.length > 0" :value="config.doctors" striped-rows class="data-table">
+        <Column field="name" header="ФИО врача" />
+        <Column header="Действия" style="width: 150px">
+          <template #body="slotProps">
+            <Button icon="pi pi-trash" rounded text severity="danger"
+              @click="removeDoctor(config.doctors.indexOf(slotProps.data))" />
+          </template>
+        </Column>
+      </DataTable>
 
-    <!-- Статус -->
-    <div
-      v-if="actionStatus"
-      :style="{ backgroundColor: statusColor }"
-      class="status-message"
-    >
-      {{ actionStatus.message }}
-    </div>
-
-    <div>
-      <div class="section">
-        <h2>Подразделение</h2>
-        <div class="add-item">
-          <input
-            v-model="title"
-            placeholder="Введите название подразделения"
-            class="input-field"
-          />
-        </div>
+      <div v-else class="empty-state">
+        <p>Нет добавленных врачей</p>
       </div>
-      <!-- Секция врачей -->
-      <div class="section">
-        <h2>Врачи</h2>
-        <div class="add-item">
-          <input
-            v-model="newDoctor"
-            @keyup.enter="addDoctor"
-            placeholder="Введите ФИО врача"
-            class="input-field"
-          />
-          <button @click="addDoctor" class="">Добавить врача</button>
-        </div>
+    </Card>
 
-        <div
-          v-for="(doctor, index) in config.doctors"
-          :key="index"
-          class="item-row"
-        >
-          <div class="item-edit">
-            <div class="task-number">{{ index + 1 }}</div>
+    <!-- Блоки задач -->
+    <Card class="config-section">
+      <template #title>Управление блоками задач</template>
+      <template #subtitle>{{ config.blocks.length }} блоков</template>
 
-            <input
-              v-model="doctor.name"
-              @keyup.enter="stopEditingDoctor"
-              @blur="stopEditingDoctor"
-              class="input-field"
-            />
-            <div class="block-actions">
-              <button @click="removeDoctor(index)" class="btn btn-danger">
-                Удалить
-              </button>
+      <div class="section-controls">
+        <Button icon="pi pi-plus" label="Добавить блок" @click="showAddBlock = true" severity="success" />
+      </div>
+
+      <div v-if="config.blocks.length > 0" class="blocks-list">
+        <Card v-for="(block, blockIndex) in config.blocks" :key="blockIndex" class="block-card">
+          <template #title>
+            <div class="block-title-wrapper">
+              <span class="block-number">{{ blockIndex + 1 }}</span>
+              <span>{{ block.label }}</span>
             </div>
+          </template>
+          <template #subtitle>{{ block.tasks.length }} задач</template>
+
+          <div class="block-actions">
+            <Button icon="pi pi-arrow-up" rounded text @click="moveBlockUp(blockIndex)" :disabled="blockIndex === 0" />
+            <Button icon="pi pi-arrow-down" rounded text @click="moveBlockDown(blockIndex)"
+              :disabled="blockIndex === config.blocks.length - 1" />
+            <Button icon="pi pi-plus" rounded text severity="success"
+              @click="selectedBlockForTask = blockIndex; showAddTask = true" />
+            <Button icon="pi pi-trash" rounded text severity="danger" @click="removeBlock(blockIndex)" />
           </div>
-        </div>
-      </div>
 
-      <!-- Секция блоков -->
-      <div class="section">
-        <h2>Блоки задач</h2>
-        <div class="add-item">
-          <input
-            v-model="newBlockLabel"
-            @keyup.enter="addBlock"
-            placeholder="Введите название блока"
-            class="input-field"
-          />
-          <button @click="addBlock" class="">Добавить блок</button>
-        </div>
-
-        <div class="blocks-list">
-          <div
-            v-for="(block, blockIndex) in config.blocks"
-            :key="blockIndex"
-            class="block-item"
-          >
-            <!-- Заголовок блока -->
-            <div class="block-header">
-              <div class="block-edit">
-                <input
-                  v-model="block.label"
-                  @keyup.enter="stopEditingBlock"
-                  @blur="stopEditingBlock"
-                  class="input-field block-input"
-                />
-                <div class="block-actions">
-                  <button
-                    @click="moveBlockUp(blockIndex)"
-                    :disabled="blockIndex === 0"
-                    class=""
-                  >
-                    ↑
-                  </button>
-                  <button
-                    @click="moveBlockDown(blockIndex)"
-                    :disabled="blockIndex === config.blocks.length - 1"
-                    class=""
-                  >
-                    ↓
-                  </button>
-
-                  <button
-                    @click="removeBlock(blockIndex)"
-                    class="btn btn-danger"
-                  >
-                    Удалить
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Задачи блока -->
-            <div class="tasks-section">
-              <div class="add-task">
-                <input
-                  v-model="newTaskLabel"
-                  @keyup.enter="addTask(blockIndex)"
-                  placeholder="Введите описание задачи"
-                  class="input-field"
-                />
-                <button @click="addTask(blockIndex)" class="">
-                  Добавить задачу
-                </button>
-              </div>
-              <div
-                v-for="task in block.tasks"
-                :key="task.number"
-                class="item-row"
-              >
-                <div class="item-edit">
-                  <div class="task-number">{{ task.number }}</div>
-
-                  <input
-                    v-model="task.label"
-                    @keyup.enter="stopEditingTask"
-                    @blur="stopEditingTask"
-                    class="input-field"
-                  />
-                  <div class="task-actions">
-                    <button
-                      @click="moveTaskUp(blockIndex, task.number - 1)"
-                      :disabled="task.number - 1 === 0"
-                      class=""
-                    >
-                      ↑
-                    </button>
-                    <button
-                      @click="moveTaskDown(blockIndex, task.number - 1)"
-                      :disabled="task.number - 1 === block.tasks.length - 1"
-                      class=""
-                    >
-                      ↓
-                    </button>
-
-                    <button
-                      @click="removeTask(blockIndex, task.number - 1)"
-                      class="btn btn-danger"
-                    >
-                      Удалить
-                    </button>
+          <!-- Задачи блока -->
+          <div class="tasks-section">
+            <DataTable :value="block.tasks" striped-rows class="data-table">
+              <Column field="number" header="№" style="width: 50px" />
+              <Column field="label" header="Описание" />
+              <Column header="Действия" style="width: 120px">
+                <template #body="slotProps">
+                  <div class="action-buttons">
+                    <Button icon="pi pi-arrow-up" text rounded
+                      @click="moveTaskUp(blockIndex, block.tasks.indexOf(slotProps.data))"
+                      :disabled="block.tasks.indexOf(slotProps.data) === 0" />
+                    <Button icon="pi pi-arrow-down" text rounded
+                      @click="moveTaskDown(blockIndex, block.tasks.indexOf(slotProps.data))"
+                      :disabled="block.tasks.indexOf(slotProps.data) === block.tasks.length - 1" />
+                    <Button icon="pi pi-trash" text rounded severity="danger"
+                      @click="removeTask(blockIndex, block.tasks.indexOf(slotProps.data))" />
                   </div>
-                </div>
-              </div>
-            </div>
+                </template>
+              </Column>
+            </DataTable>
           </div>
-        </div>
+        </Card>
       </div>
-    </div>
+
+      <div v-else class="empty-state">
+        <p>Нет добавленных блоков</p>
+      </div>
+    </Card>
+
+    <!-- Диалог добавления врача -->
+    <Dialog v-model:visible="showAddDoctor" header="Добавить врача" :modal="true" class="dialog-sm">
+      <InputGroup class="dialog-input">
+        <InputText v-model="newDoctorName" placeholder="ФИО врача" @keyup.enter="addDoctor" />
+        <Button icon="pi pi-check" @click="addDoctor" />
+      </InputGroup>
+    </Dialog>
+
+    <!-- Диалог добавления блока -->
+    <Dialog v-model:visible="showAddBlock" header="Добавить блок" :modal="true" class="dialog-sm">
+      <InputGroup class="dialog-input">
+        <InputText v-model="newBlockLabel" placeholder="Название блока" @keyup.enter="addBlock" />
+        <Button icon="pi pi-check" @click="addBlock" />
+      </InputGroup>
+    </Dialog>
+
+    <!-- Диалог добавления задачи -->
+    <Dialog v-model:visible="showAddTask" header="Добавить задачу" :modal="true" class="dialog-sm">
+      <InputGroup class="dialog-input">
+        <InputText v-model="newTaskLabel" placeholder="Описание задачи" @keyup.enter="addTask(selectedBlockForTask)" />
+        <Button icon="pi pi-check" @click="addTask(selectedBlockForTask)" />
+      </InputGroup>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
-.flex-row {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-}
-label[for="dateConfig"] {
-  margin-right: 40px;
-}
 .config-editor {
+  padding: 20px;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.toolbar {
   margin-bottom: 30px;
-  padding-bottom: 20px;
-  border-bottom: 2px solid #e9ecef;
 }
 
-.header h1 {
+.toolbar h2 {
   margin: 0;
-  color: #2c3e50;
+  font-size: 24px;
+  color: var(--text-color);
 }
 
-.header-actions {
-  display: flex;
-  gap: 10px;
+.config-section {
+  margin-bottom: 24px;
 }
 
-.status-message {
-  position: absolute;
-  padding: 10px 15px;
-  border-radius: 4px;
-  color: white;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-.section {
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-
-  padding: 15px;
-  margin-bottom: 30px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.section h2 {
-  margin: 0 0 5px 0;
-  color: #495057;
-  border-bottom: 2px solid #f8f9fa;
-  padding-bottom: 5px;
-}
-
-.add-item {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  align-items: center;
-}
-
-.input-field {
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 14px;
-  flex: 1;
-}
-.input-field:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-.input-field:hover {
-  border-color: #5ca9fc;
-}
-.block-input {
-  flex: 1;
+:deep(.p-card-title) {
+  color: var(--primary-color);
   font-size: 16px;
   font-weight: 600;
 }
 
-.task-input {
-  flex: 1;
-  font-size: 14px;
-}
-
-.item-row {
-  margin-bottom: 8px;
-}
-
-.item-content,
-.item-edit {
+.section-controls {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.data-table {
+  width: 100%;
+}
+
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+  background: var(--surface-ground);
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.blocks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.block-card {
+  border-left: 4px solid var(--primary-color);
+}
+
+.block-title-wrapper {
+  display: flex;
   align-items: center;
+  gap: 12px;
 }
 
-.item-text {
-  font-size: 14px;
-  color: #495057;
+.block-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  font-weight: 600;
+  font-size: 12px;
 }
 
-.item-actions,
-.block-actions,
-.task-actions {
+.block-actions {
   display: flex;
-  gap: 5px;
-  margin-left: 10px;
-}
-
-.block-item {
-  border: 2px solid #e9ecef;
-  border-radius: 8px;
+  gap: 8px;
+  justify-content: flex-end;
   margin-bottom: 20px;
-  overflow: hidden;
-}
-
-.block-header {
-  background: #f8f9fa;
-  padding: 15px;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.block-title,
-.block-edit {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.block-title h3 {
-  margin: 0;
-  color: #495057;
 }
 
 .tasks-section {
-  padding: 15px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-color);
 }
 
-.add-task {
+.action-buttons {
   display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.task-item {
-  display: flex;
-  align-items: center;
-  padding: 10px;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  background: white;
-}
-
-.task-number {
-  background: #007bff;
-  color: white;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
+  gap: 4px;
   justify-content: center;
-  font-weight: 600;
-  margin-right: 12px;
-  font-size: 14px;
 }
 
-.task-content,
-.task-edit {
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-color-secondary);
+  font-style: italic;
+}
+
+.dialog-sm {
+  width: 90vw;
+  max-width: 400px;
+}
+
+.dialog-input {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 8px;
+}
+
+:deep(.p-inputtext) {
   flex: 1;
 }
 
-.task-text {
-  color: #495057;
-  line-height: 1.4;
-}
-
-/* Адаптивность */
 @media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
+  .config-editor {
+    padding: 12px;
   }
 
-  .header-actions {
-    justify-content: center;
+  .blocks-list {
+    gap: 12px;
   }
 
-  .add-item,
-  .add-task {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .item-content,
-  .block-title,
-  .task-content {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .item-actions,
-  .block-actions,
-  .task-actions {
-    justify-content: center;
-  }
-
-  .task-item {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .task-number {
-    align-self: flex-start;
+  .action-buttons {
+    flex-wrap: wrap;
   }
 }
 </style>
